@@ -1,0 +1,79 @@
+[
+  {
+    "detected_category": "Data Structures & Algorithms(DSA)",
+    "matched_taxonomy_category": "Data Structures & Algorithms(DSA)",
+    "confidence": 0.7024838,
+    "similarity": 1,
+    "skills": {
+      "gaps": [
+        {
+          "name": "Arrays & Strings",
+          "description": "Understanding indexing, slicing, and common operations on arrays and strings.",
+          "priority": "high"
+        },
+        {
+          "name": "Linked Lists",
+          "description": "Implementing and manipulating singly and doubly linked lists.",
+          "priority": "high"
+        },
+        {
+          "name": "Stacks & Queues",
+          "description": "Applying stack and queue operations for problems involving order and scheduling.",
+          "priority": "high"
+        },
+        {
+          "name": "Trees & Graphs",
+          "description": "Traversing, building, and optimizing data in trees and graphs using DFS, BFS, etc.",
+          "priority": "high"
+        },
+        {
+          "name": "Dynamic Programming",
+          "description": "Breaking problems into subproblems and using memoization/tabulation for optimization.",
+          "priority": "high"
+        },
+        {
+          "name": "Searching & Sorting",
+          "description": "Implementing binary search, merge sort, quick sort, and understanding time complexities.",
+          "priority": "high"
+        }
+      ],
+      "present": [],
+      "needs_improvement": []
+    }
+  },
+  {
+    "detected_category": "Databases",
+    "matched_taxonomy_category": "Databases",
+    "confidence": 0.40188265,
+    "similarity": 1,
+    "skills": {
+      "gaps": [
+        {
+          "name": "NoSQL (MongoDB)",
+          "description": "Working with flexible schemas, aggregation pipelines, and document-based storage.",
+          "priority": "high"
+        },
+        {
+          "name": "ORMs (Prisma/SQLAlchemy)",
+          "description": "Using object-relational mapping tools to interact with databases in code.",
+          "priority": "high"
+        }
+      ],
+      "present": [
+        {
+          "name": "SQL",
+          "user_level": "intermediate",
+          "description": "Writing queries, joins, subqueries, and understanding schema design.",
+          "recommendation": "Consider advancing to expert level"
+        },
+        {
+          "name": "PostgreSQL",
+          "user_level": "intermediate",
+          "description": "Using Postgres features like indexes, constraints, and functions for scalable DBs.",
+          "recommendation": "Consider advancing to expert level"
+        }
+      ],
+      "needs_improvement": []
+    }
+  }
+]

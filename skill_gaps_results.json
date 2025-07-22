@@ -1,0 +1,122 @@
+[
+  {
+    "skill": "Next.js",
+    "category": "Web Development",
+    "score": 0.4113263,
+    "description": "Building full-stack React apps with routing, API routes, and SSR/SSG."
+  },
+  {
+    "skill": "Backend (Node/Express)",
+    "category": "Web Development",
+    "score": 0.40574753,
+    "description": "Creating REST APIs, handling routing, and managing middleware and authentication."
+  },
+  {
+    "skill": "JavaScript",
+    "category": "Web Development",
+    "score": 0.40505904,
+    "description": "Writing interactive frontend logic and working with the DOM and async calls."
+  },
+  {
+    "skill": "React",
+    "category": "Web Development",
+    "score": 0.39239812,
+    "description": "Creating dynamic user interfaces using components, hooks, and state management."
+  },
+  {
+    "skill": "Open Source LLMs",
+    "category": "AI & ML",
+    "score": 0.3717575,
+    "description": "Working with Hugging Face, Ollama, and other OSS model platforms for local AI."
+  },
+  {
+    "skill": "Authentication",
+    "category": "Web Development",
+    "score": 0.3628567,
+    "description": "Securing web apps using JWT, OAuth, session-based auth, and role-based access."
+  },
+  {
+    "skill": "HTML/CSS",
+    "category": "Web Development",
+    "score": 0.3525694,
+    "description": "Building static web pages using semantic HTML and responsive styling with CSS."
+  },
+  {
+    "skill": "Linux/Bash",
+    "category": "DevOps & Infra",
+    "score": 0.34898043,
+    "description": "Navigating servers and automating tasks using bash scripts and command-line tools."
+  },
+  {
+    "skill": "Trees & Graphs",
+    "category": "Data Structures & Algorithms",
+    "score": 0.3451955,
+    "description": "Traversing, building, and optimizing data in trees and graphs using DFS, BFS, etc."
+  },
+  {
+    "skill": "SQL",
+    "category": "Databases",
+    "score": 0.34236866,
+    "description": "Writing queries, joins, subqueries, and understanding schema design."
+  },
+  {
+    "skill": "Arrays & Strings",
+    "category": "Data Structures & Algorithms",
+    "score": 0.3299357,
+    "description": "Understanding indexing, slicing, and common operations on arrays and strings."
+  },
+  {
+    "skill": "OpenAI Assistants API",
+    "category": "AI & ML",
+    "score": 0.32678565,
+    "description": "Using OpenAI's agent framework to create persistent assistants with tools and memory."
+  },
+  {
+    "skill": "Git & GitHub",
+    "category": "DevOps & Infra",
+    "score": 0.31311524,
+    "description": "Using Git for version control and collaborating through GitHub repositories and PRs."
+  },
+  {
+    "skill": "LangChain",
+    "category": "AI & ML",
+    "score": 0.31304613,
+    "description": "Composing chains of LLM tasks, tools, and agents to build AI workflows."
+  },
+  {
+    "skill": "Embeddings & Vector DBs",
+    "category": "AI & ML",
+    "score": 0.28841242,
+    "description": "Generating vector representations and storing/searching them in vector databases."
+  },
+  {
+    "skill": "CI/CD",
+    "category": "DevOps & Infra",
+    "score": 0.28801388,
+    "description": "Automating testing and deployments using pipelines like GitHub Actions or Vercel CI."
+  },
+  {
+    "skill": "ORMs (Prisma/SQLAlchemy)",
+    "category": "Databases",
+    "score": 0.28648967,
+    "description": "Using object-relational mapping tools to interact with databases in code."
+  },
+  {
+    "skill": "NoSQL (MongoDB)",
+    "category": "Databases",
+    "score": 0.2840277,
+    "description": "Working with flexible schemas, aggregation pipelines, and document-based storage."
+  },
+  {
+    "skill": "Prompt Engineering",
+    "category": "AI & ML",
+    "score": 0.2833594,
+    "description": "Designing effective prompts for language models to produce reliable outputs."
+  },
+  {
+    "skill": "PostgreSQL",
+    "category": "Databases",
+    "score": 0.27968025,
+    "description": "Using Postgres features like indexes, constraints, and functions for scalable DBs."
+  }
+]

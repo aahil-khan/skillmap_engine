@@ -1,0 +1,99 @@
+{
+  "name": "Anoushka Awasthi",
+  "education": [
+    {
+      "degree": "B.Tech in Computer Engineering",
+      "institution": "Thapar University, Patiala",
+      "year": "2023 - Present"
+    }
+  ],
+  "experience": [
+    {
+      "company": "Glyptika Studios",
+      "role": "Product Manager & 2D Animator (Intern)",
+      "technologies": [
+        "Blender"
+      ],
+      "duration": "6 months"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Personal Movie Tracker",
+      "description": "Developed a web app using TMDB API to search and save favourite movies. Integrated features for tagging, rating, and reviewing movies with data persistence via local storage. Designed a responsive interface using HTML, CSS, and JavaScript.",
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript"
+      ]
+    },
+    {
+      "name": "Clude Chef App",
+      "description": "Developed a web app to assist users in discovering recipes based on available ingredients. Integrated search functionality, ingredient filtering, and personalized recipe recommendations. Utilized HTML, CSS, and JavaScript for responsive design and dynamic user interaction. Enabled seamless data handling and display using API integration for recipe databases.",
+      "technologies": [
+        "HTML",
+        "CSS",
+        "JavaScript"
+      ]
+    },
+    {
+      "name": "Website Development",
+      "description": "Built two websites as part of the Technical Department in the first year.",
+      "technologies": [
+        "HTML",
+        "CSS"
+      ]
+    }
+  ],
+  "technical_skills": [
+    {
+      "category": "Programming",
+      "skills": [
+        "C",
+        "C++",
+        "Python",
+        "Java"
+      ]
+    },
+    {
+      "category": "Web Development",
+      "skills": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "React",
+        "Nodejs",
+        "ExpressJs"
+      ]
+    },
+    {
+      "category": "AI & Data Structures",
+      "skills": [
+        "Basic AI Concepts",
+        "DSA"
+      ]
+    },
+    {
+      "category": "Tools & Software",
+      "skills": [
+        "Blender",
+        "MySQL",
+        "Git",
+        "VS Code"
+      ]
+    },
+    {
+      "category": "Operating Systems",
+      "skills": [
+        "Windows",
+        "Linux"
+      ]
+    }
+  ],
+  "inferred_areas_of_strength": [
+    "Web Development",
+    "Product Management",
+    "2D Animation"
+  ],
+  "possible_gaps": []
+}
