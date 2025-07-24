@@ -4,10 +4,10 @@ services:
   skillmap-api:
     build: .
     ports:
-      - "5000:5000"
+      - "5005:5005"
     environment:
       - NODE_ENV=production
-      - PORT=5000
+      - PORT=5005
       # Add your environment variables here
       # - OPENAI_API_KEY=${OPENAI_API_KEY}
       # - QDRANT_URL=${QDRANT_URL}
@@ -17,7 +17,7 @@ services:
       - ./uploads:/usr/src/app/uploads
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5005/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
       interval: 30s
       timeout: 10s
       retries: 3

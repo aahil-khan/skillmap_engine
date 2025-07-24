@@ -15,7 +15,7 @@ import { searchSimilarSkills } from './services/skillSearchService.js';
 import { convertToStandalone } from './services/convertToStandaloneService.js';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5005;
 
 // Rate limiting - 5 requests per 15 minutes
 const limiter = rateLimit({
