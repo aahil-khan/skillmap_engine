@@ -7,7 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "node index.js",
-    "seed-taxonomy": "node scripts/seedTaxonomy.js"
+    "seed-taxonomy": "node scripts/seedTaxonomy.js",
+    "docker:build": "docker build -t skillmap-engine .",
+    "docker:run": "docker run -p 5000:5000 --env-file .env skillmap-engine",
+    "docker:dev": "docker-compose up --build",
+    "docker:prod": "docker-compose -f docker-compose.yml up -d"
   },
   "keywords": [],
   "author": "",

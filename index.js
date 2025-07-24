@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 
 // Import configurations
@@ -16,7 +17,20 @@ import { convertToStandalone } from './services/convertToStandaloneService.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Rate limiting - 5 requests per 15 minutes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // Middleware
+app.use(limiter);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
