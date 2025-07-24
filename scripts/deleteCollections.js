@@ -1,4 +1,4 @@
-import { qdrant } from "./config.js";
+import { qdrant } from "../oldconfig.js";
 
 const COLLECTION_NAME = 'user_profiles';
 

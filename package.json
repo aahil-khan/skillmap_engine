@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node profiler.js",
-    "dev": "node profiler.js"
+    "start": "node index.js",
+    "dev": "node index.js",
+    "seed-taxonomy": "node scripts/seedTaxonomy.js"
   },
   "keywords": [],
   "author": "",
