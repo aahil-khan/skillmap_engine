@@ -6,6 +6,7 @@ import 'dotenv/config';
 
 // Import configurations
 import { upload } from './utils/multer.js';
+import { supabase } from './config/supabase.js';
 
 // Import services
 import { processResume } from './services/resumeService.js';
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 5005;
 // Rate limiting - 5 requests per 15 minutes
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 50, // limit each IP to 5 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: '15 minutes'
@@ -34,6 +35,26 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Supabase Auth middleware
+async function authenticate(req, res, next) {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.split(' ')[1];
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    req.user = data.user;
+    next();
+  } catch (err) {
+    console.error('Authentication error:', err);
+    return res.status(401).json({ error: 'Authentication failed', details: err.message });
+  }
+}
+
 // Routes
 
 // Health check
@@ -46,19 +67,16 @@ app.get('/health', (req, res) => {
 });
 
 // Resume processing endpoint
-app.post('/upload-resume', upload.single('resume'), async (req, res) => {
+app.post('/upload-resume', authenticate, upload.single('resume'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
     console.log(`Processing uploaded file: ${req.file.filename}`);
-    
     const profileData = await processResume(req.file.path);
-    
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
-    
     res.json({
       success: true,
       profile: profileData
@@ -66,12 +84,10 @@ app.post('/upload-resume', upload.single('resume'), async (req, res) => {
 
   } catch (error) {
     console.error('Error processing resume:', error);
-    
     // Clean up file if it exists
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
     res.status(500).json({ 
       error: 'Failed to process resume',
       details: error.message 
