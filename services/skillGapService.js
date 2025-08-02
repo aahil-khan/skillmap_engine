@@ -11,11 +11,11 @@ const SKILL_EMBEDDINGS_COLLECTION = 'skill_embeddings';
  * @param {string} name - User name
  * @returns {Object} Skill gap analysis with AI summary
  */
-export async function analyzeSkillGaps(name) {
+export async function analyzeSkillGaps(user_id) {
   try {
     // Fetch user profile
-    const userProfile = await fetchUserProfileByName(name);
-    
+    const userProfile = await fetchUserProfileById(user_id);
+
     if (!userProfile) {
       return null;
     }
@@ -23,7 +23,7 @@ export async function analyzeSkillGaps(name) {
     const userSkillListWithLevels = userProfile.payload.skills_list_with_level || {};
     const userGoal = userProfile.payload.learning_goal || '';
     
-    console.log(`Analyzing skill gaps for: ${name}`);
+    console.log(`Analyzing skill gaps for: ${user_id}`);
     console.log(`User goal: ${userGoal}`);
     console.log(`User skills:`, userSkillListWithLevels);
 
@@ -35,7 +35,7 @@ export async function analyzeSkillGaps(name) {
     const skillGaps = await analyzeSkillGapsForCategories(categories, userSkillListWithLevels);
     
     // Generate AI summary
-    const summary = await generateSkillGapSummary(userGoal, skillGaps, name);
+    const summary = await generateSkillGapSummary(userGoal, skillGaps, userProfile.payload.user_name || 'User');
     
     // Save results to file (optional)
     // const filename = `skill_gaps_${name.replace(/\s+/g, '_').toLowerCase()}.json`;
@@ -45,7 +45,8 @@ export async function analyzeSkillGaps(name) {
     
     return {
       success: true,
-      user: name,
+      user_id: user_id,
+      user: userProfile.payload.user_name || 'User',
       analysis: skillGaps,
       summary: summary,
       categories_analyzed: categories.length,
@@ -63,12 +64,12 @@ export async function analyzeSkillGaps(name) {
  * @param {string} name - User name
  * @returns {Object} User profile data
  */
-async function fetchUserProfileByName(name) {
+async function fetchUserProfileById(user_id) {
   try {
     const existing = await qdrant.search(USER_PROFILES_COLLECTION, {
       vector: new Array(1536).fill(0), // dummy vector
       filter: {
-        must: [{ key: "user_name", match: { value: name } }]
+        must: [{ key: "user_id", match: { value: user_id } }]
       },
       limit: 1,
       with_vector: true,
@@ -78,8 +79,8 @@ async function fetchUserProfileByName(name) {
     if (existing && existing.length > 0) {
       return existing[0];
     }
-    
-    console.log(`No user profile found for name: ${name}`);
+
+    console.log(`No user profile found for ID: ${user_id}`);
     return null;
     
   } catch (error) {

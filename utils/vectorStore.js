@@ -47,6 +47,7 @@ export async function ensureCollection(collectionName, config = {}) {
  */
 async function createUserProfileIndexes(collectionName) {
   const indexes = [
+    { field_name: 'user_id', field_schema: 'uuid' },
     { field_name: 'user_name', field_schema: 'keyword' },
     { field_name: 'skills_count', field_schema: 'integer' },
     { field_name: 'projects_count', field_schema: 'integer' },

@@ -96,8 +96,9 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
 });
 
 // User profile management
-app.post('/user-profile', async (req, res) => {
+app.post('/user-profile', authenticate, async (req, res) => {
   try {
+    const user_id = req.user.id; // Use authenticated user ID
     const { name, technical_skills, inferred_areas_of_strength, goal, experience, projects } = req.body;
     
     if (!name) {
@@ -105,6 +106,7 @@ app.post('/user-profile', async (req, res) => {
     }
 
     const result = await createUserProfile({
+      user_id,
       name,
       technical_skills,
       inferred_areas_of_strength,
@@ -125,16 +127,13 @@ app.post('/user-profile', async (req, res) => {
 });
 
 // Skill gap analysis
-app.post('/analyze-skill-gaps', async (req, res) => {
+app.post('/analyze-skill-gaps', authenticate, async (req, res) => {
   try {
-    const { name } = req.body;
     
-    if (!name) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
-    
-    const analysis = await analyzeSkillGaps(name);
-    
+    const user_id = req.user.id; // Use authenticated user ID
+    console.log(`Analyzing skill gaps for user ID: ${user_id}`);
+    const analysis = await analyzeSkillGaps(user_id);
+
     if (!analysis) {
       return res.status(404).json({ error: 'User not found' });
     }

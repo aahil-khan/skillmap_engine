@@ -13,13 +13,13 @@ export async function createUserProfile(profileData) {
   try {
     await ensureCollection(COLLECTION_NAME);
     
-    const { name, technical_skills, inferred_areas_of_strength, goal, experience, projects } = profileData;
+    const { user_id, name, technical_skills, inferred_areas_of_strength, goal, experience, projects } = profileData;
     
     // Check if user profile already exists
     const existing = await qdrant.search(COLLECTION_NAME, {
       vector: new Array(1536).fill(0), // dummy vector
       filter: {
-        must: [{ key: "user_name", match: { value: name } }]
+        must: [{ key: "user_id", match: { value: user_id } }]
       },
       limit: 1
     });
@@ -30,9 +30,9 @@ export async function createUserProfile(profileData) {
     if (existing && existing.length > 0) {
       existingProfileId = existing[0].id;
       isUpdate = true;
-      console.log(`Updating existing profile for user: ${name}`);
+      console.log(`Updating existing profile for user: ${user_id} ${name}`);
     } else {
-      console.log(`Creating new profile for user: ${name}`);
+      console.log(`Creating new profile for user: ${user_id} ${name}`);
     }
 
     // Build comprehensive user profile text
@@ -62,6 +62,7 @@ export async function createUserProfile(profileData) {
       id: existingProfileId || Date.now(),
       vector: embedding,
       payload: {
+        user_id,
         user_name: name,
         profile_text: profileText,
         skills_count: technical_skills ? technical_skills.reduce((total, cat) => total + cat.skills.length, 0) : 0,
@@ -115,13 +116,15 @@ export async function updateUserProfile(name, updates) {
  */
 function buildProfileText({ name, technical_skills, inferred_areas_of_strength, goal, experience, projects }) {
   let profileText = `Name: ${name}\n`;
-  
+
   // Add skills section
   if (technical_skills && Array.isArray(technical_skills)) {
     const skillsList = [];
     for (const category of technical_skills) {
-      for (const skill of category.skills) {
-        skillsList.push(`${skill.level} in ${skill.name}`);
+      if (category.skills && Array.isArray(category.skills)) {
+        for (const skill of category.skills) {
+          skillsList.push(`${skill.level} in ${skill.name}`);
+        }
       }
     }
     if (skillsList.length > 0) {
@@ -131,9 +134,15 @@ function buildProfileText({ name, technical_skills, inferred_areas_of_strength, 
   
   // Add projects section
   if (projects && Array.isArray(projects)) {
-    const projectDescriptions = projects.map(project => 
-      `${project.name} using ${project.technologies?.join(', ') || 'various technologies'}`
-    );
+    const projectDescriptions = projects.map(project => {
+      let techString = 'various technologies';
+      if (Array.isArray(project.technologies)) {
+        techString = project.technologies.join(', ');
+      } else if (typeof project.technologies === 'string') {
+        techString = project.technologies;
+      }
+      return `${project.name} using ${techString}`;
+    });
     if (projectDescriptions.length > 0) {
       profileText += `Projects: ${projectDescriptions.join('. ')}\n`;
     }
@@ -141,9 +150,15 @@ function buildProfileText({ name, technical_skills, inferred_areas_of_strength, 
   
   // Add experience section
   if (experience && Array.isArray(experience)) {
-    const experienceDescriptions = experience.map(exp => 
-      `${exp.duration || ''} ${exp.role} at ${exp.company} (${exp.technologies?.join(', ') || 'various technologies'})`
-    );
+    const experienceDescriptions = experience.map(exp => {
+      let techString = 'various technologies';
+      if (Array.isArray(exp.technologies)) {
+        techString = exp.technologies.join(', ');
+      } else if (typeof exp.technologies === 'string') {
+        techString = exp.technologies;
+      }
+      return `${exp.duration || ''} ${exp.role} at ${exp.company} (${techString})`;
+    });
     if (experienceDescriptions.length > 0) {
       profileText += `Experience: ${experienceDescriptions.join('. ')}\n`;
     }
@@ -155,8 +170,16 @@ function buildProfileText({ name, technical_skills, inferred_areas_of_strength, 
   }
   
   // Add areas of strength
-  if (inferred_areas_of_strength && Array.isArray(inferred_areas_of_strength)) {
-    profileText += `Areas of Strength: ${inferred_areas_of_strength.join(', ')}\n`;
+  if (inferred_areas_of_strength) {
+    let strengthString = '';
+    if (Array.isArray(inferred_areas_of_strength)) {
+      strengthString = inferred_areas_of_strength.join(', ');
+    } else if (typeof inferred_areas_of_strength === 'string') {
+      strengthString = inferred_areas_of_strength;
+    }
+    if (strengthString) {
+      profileText += `Areas of Strength: ${strengthString}\n`;
+    }
   }
 
   return profileText;
