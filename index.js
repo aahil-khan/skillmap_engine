@@ -14,6 +14,7 @@ import { createUserProfile, updateUserProfile } from './services/userProfileServ
 import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
 import { convertToStandalone } from './services/convertToStandaloneService.js';
+import { atsScore } from './services/atsService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -199,6 +200,32 @@ app.post('/convert-to-standalone', async (req, res) => {
     });
   }
 });
+
+// ATS score evaluation
+app.post('/ats-score', async (req, res) => {
+  try {
+    const { resumeText, jobDescription } = req.body;
+
+    if (!resumeText || !jobDescription) {
+      return res.status(400).json({ error: 'Both resumeText and jobDescription are required' });
+    }
+
+    const score = await atsScore(resumeText, jobDescription);
+
+    res.json({
+      success: true,
+      atsScore: score
+    });
+
+  } catch (error) {
+    console.error('Error evaluating ATS score:', error);
+    return res.status(500).json({ 
+        error: 'Failed to evaluate ATS score',
+        details: error.message
+    });
+  }
+});
+
 
 // Error handling middleware
 app.use((error, req, res, next) => {
