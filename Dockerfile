@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S skillmap -u 1001
 
-# Install dependencies for pdf-parse (required for PDF processing)
+# Install dependencies for PDF processing and text extraction
 RUN apk add --no-cache \
     python3 \
     make \
@@ -21,7 +21,9 @@ RUN apk add --no-cache \
     pixman-dev \
     pangomm-dev \
     libjpeg-turbo-dev \
-    freetype-dev
+    freetype-dev \
+    poppler-utils \
+    binutils
 
 # Copy package files
 COPY package*.json ./
