@@ -10,6 +10,7 @@ import { supabase } from './config/supabase.js';
 
 // Import services
 import { processResume } from './services/resumeService.js';
+import { getLeetCodeStats } from './services/leetcodeService.js';
 import { createUserProfile, updateUserProfile } from './services/userProfileService.js';
 import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
@@ -92,6 +93,26 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
     res.status(500).json({ 
       error: 'Failed to process resume',
       details: error.message 
+    });
+  }
+});
+
+//Leetcode Endpoint
+//add auth
+app.post('/leetcode-stats', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const stats = await getLeetCodeStats(username);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching LeetCode stats:', error);
+    res.status(500).json({
+      error: 'Failed to fetch LeetCode stats',
+      details: error.message
     });
   }
 });
