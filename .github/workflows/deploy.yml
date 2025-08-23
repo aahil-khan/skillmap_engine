@@ -38,10 +38,15 @@ jobs:
         cp .env .env.backup || echo "No .env file to backup"
         
         # Force stop and remove containers to avoid permission issues
-        echo "🛑 Force stopping existing containers..."
-        docker-compose down --timeout 5 || true
-        docker stop $(docker ps -aq) 2>/dev/null || true
-        docker rm $(docker ps -aq) 2>/dev/null || true
+        echo "🛑 Stopping existing containers..."
+        docker-compose down --timeout 30 || true
+        
+        # If docker-compose down fails, try to force remove just our project containers
+        if docker ps | grep -q "skillmap"; then
+          echo "⚠️ Containers still running, attempting gentle stop..."
+          docker stop $(docker ps --filter "name=skillmap" -q) 2>/dev/null || true
+          docker rm $(docker ps --filter "name=skillmap" -aq) 2>/dev/null || true
+        fi
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
