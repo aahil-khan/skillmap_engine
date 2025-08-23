@@ -17,7 +17,17 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+      with:
+        clean: true
+        
+    - name: Debug workspace
+      run: |
+        echo "Working directory: $(pwd)"
+        echo "Workspace: ${{ github.workspace }}"
+        ls -la
+        echo "Package files:"
+        ls -la package*
+        
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -25,7 +35,11 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: |
+        pwd
+        ls -la
+        npm cache clean --force
+        npm ci
       
     - name: Run tests (if any)
       run: npm test --if-present
