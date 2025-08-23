@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 env:
-  DOCKER_BUILDKIT: 1
-  COMPOSE_DOCKER_CLI_BUILD: 1
+  DOCKER_BUILDKIT: 0
+  COMPOSE_DOCKER_CLI_BUILD: 0
 
 jobs:
   deploy:
@@ -28,20 +28,28 @@ jobs:
         # Navigate to project directory
         cd ${{ github.workspace }}
         
+        # Copy .env file from main project if it doesn't exist
+        if [ ! -f .env ]; then
+          echo "📄 Copying .env file from main project..."
+          cp /home/aahil/projects/skillmap_engine/.env .env || echo "Could not copy .env file"
+        fi
+        
         # Backup current .env file
         cp .env .env.backup || echo "No .env file to backup"
         
-        # Stop existing containers gracefully
-        echo "🛑 Stopping existing containers..."
-        docker-compose down --timeout 30 || true
+        # Force stop and remove containers to avoid permission issues
+        echo "🛑 Force stopping existing containers..."
+        sudo docker-compose down --timeout 5 || true
+        sudo docker stop $(sudo docker ps -aq) 2>/dev/null || true
+        sudo docker rm $(sudo docker ps -aq) 2>/dev/null || true
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
-        docker system prune -f --volumes || true
+        sudo docker system prune -f --volumes || true
         
         # Build and start containers
         echo "🔨 Building and starting containers..."
-        docker-compose up --build -d --remove-orphans
+        sudo docker-compose up --build -d --remove-orphans
         
         # Wait for containers to be ready
         echo "⏳ Waiting for containers to start..."
@@ -49,7 +57,7 @@ jobs:
         
         # Check container health
         echo "🏥 Checking container health..."
-        docker-compose ps
+        sudo docker-compose ps
         
         # Test health endpoint
         echo "🔍 Testing health endpoint..."
@@ -61,7 +69,7 @@ jobs:
             echo "❌ Health check failed, attempt $i/5"
             if [ $i -eq 5 ]; then
               echo "🚨 Health check failed after 5 attempts"
-              docker-compose logs --tail=50
+              sudo docker-compose logs --tail=50
               exit 1
             fi
             sleep 10
@@ -70,6 +78,6 @@ jobs:
         
         # Show recent logs
         echo "📋 Recent logs:"
-        docker-compose logs --tail=20
+        sudo docker-compose logs --tail=20
         
         echo "🎉 Deployment completed successfully!"
