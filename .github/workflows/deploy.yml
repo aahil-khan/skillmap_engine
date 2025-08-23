@@ -37,11 +37,8 @@ jobs:
         # Backup current .env file
         cp .env .env.backup || echo "No .env file to backup"
         
-        # Gracefully stop containers using docker-compose only
-        echo "🛑 Stopping existing containers..."
-        docker-compose down --timeout 30 || echo "No containers to stop or permission issue, continuing..."
-        
-        # Don't try to force stop containers - let docker-compose handle it
+        # Skip stopping containers - let docker-compose up --force-recreate handle it
+        echo "⚡ Skipping manual container stop, using force-recreate instead..."
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
