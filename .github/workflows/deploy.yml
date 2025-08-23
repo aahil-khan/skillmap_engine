@@ -37,16 +37,25 @@ jobs:
         # Backup current .env file
         cp .env .env.backup || echo "No .env file to backup"
         
-        # Skip stopping containers - let docker-compose up --force-recreate handle it
-        echo "⚡ Skipping manual container stop, using force-recreate instead..."
+        # Kill container processes directly via PID to avoid Docker permission issues
+        echo "⚡ Force killing existing container processes..."
+        CONTAINER_PIDS=$(docker ps -q --filter "name=skillmap" | xargs -I {} docker inspect --format '{{.State.Pid}}' {} 2>/dev/null || true)
+        if [ ! -z "$CONTAINER_PIDS" ]; then
+          echo "Found container PIDs: $CONTAINER_PIDS"
+          echo $CONTAINER_PIDS | xargs -r kill -9 || true
+          sleep 2
+        fi
+        
+        # Remove any remaining container references
+        docker ps -aq --filter "name=skillmap" | xargs -r docker rm -f || true
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
         docker system prune -f --volumes || true
         
-        # Build and start containers (this will handle stopping existing ones)
-        echo "🔨 Building and recreating containers..."
-        docker-compose up --build --force-recreate -d --remove-orphans
+        # Build and start containers
+        echo "🔨 Building and starting containers..."
+        docker-compose up --build -d --remove-orphans
         
         # Wait for containers to be ready
         echo "⏳ Waiting for containers to start..."
