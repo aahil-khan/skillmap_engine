@@ -37,39 +37,35 @@ jobs:
         # Backup current .env file
         cp .env .env.backup || echo "No .env file to backup"
         
-        # Kill container processes directly via PID to avoid Docker permission issues
-        echo "⚡ Force killing existing container processes..."
-        # Get ALL containers (running and stopped) that match skillmap
-        CONTAINER_IDS=$(docker ps -aq --filter "name=skillmap" || true)
+        # Force stop all skillmap-related processes
+        echo "⚡ Force stopping all skillmap processes..."
+        # Get container IDs and their PIDs
+        CONTAINER_IDS=$(sudo docker ps -aq --filter "name=skillmap")
         if [ ! -z "$CONTAINER_IDS" ]; then
           echo "Found containers: $CONTAINER_IDS"
-          # Get PIDs for running containers only
-          CONTAINER_PIDS=""
-          for CONTAINER_ID in $CONTAINER_IDS; do
-            PID=$(docker inspect --format '{{.State.Pid}}' $CONTAINER_ID 2>/dev/null || echo "0")
-            if [ "$PID" != "0" ]; then
-              CONTAINER_PIDS="$CONTAINER_PIDS $PID"
+          for container in $CONTAINER_IDS; do
+            PID=$(sudo docker inspect $container --format '{{.State.Pid}}' 2>/dev/null)
+            if [ ! -z "$PID" ] && [ "$PID" != "0" ]; then
+              echo "Killing container $container with PID $PID"
+              sudo /usr/bin/kill -9 $PID 2>/dev/null || true
             fi
           done
-          if [ ! -z "$CONTAINER_PIDS" ]; then
-            echo "Found container PIDs: $CONTAINER_PIDS"
-            echo $CONTAINER_PIDS | xargs -r kill -9 || true
-            sleep 2
-          fi
-          # Force remove ALL containers (running and stopped)
-          echo "Removing all skillmap containers..."
-          echo $CONTAINER_IDS | xargs -r docker rm -f || true
-        else
-          echo "No skillmap containers found"
+          # Wait for processes to die
+          sleep 3
         fi
+        
+        # Remove all skillmap containers forcefully
+        echo "Removing all skillmap containers..."
+        sudo docker ps -aq --filter "name=skillmap" | xargs -r sudo docker rm -f 2>/dev/null || true
+        sudo docker container prune -f 2>/dev/null || true
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
-        docker system prune -f --volumes || true
+        sudo docker system prune -f --volumes || true
         
-        # Build and start containers
+        # Build and start containers (this will handle stopping existing ones)
         echo "🔨 Building and starting containers..."
-        docker-compose up --build -d --remove-orphans
+        sudo docker-compose up --build -d --remove-orphans
         
         # Wait for containers to be ready
         echo "⏳ Waiting for containers to start..."
@@ -77,7 +73,7 @@ jobs:
         
         # Check container health
         echo "🏥 Checking container health..."
-        docker-compose ps
+        sudo docker-compose ps
         
         # Test health endpoint
         echo "🔍 Testing health endpoint..."
@@ -89,7 +85,7 @@ jobs:
             echo "❌ Health check failed, attempt $i/5"
             if [ $i -eq 5 ]; then
               echo "🚨 Health check failed after 5 attempts"
-              docker-compose logs --tail=50
+              sudo docker-compose logs --tail=50
               exit 1
             fi
             sleep 10
@@ -98,6 +94,6 @@ jobs:
         
         # Show recent logs
         echo "📋 Recent logs:"
-        docker-compose logs --tail=20
+        sudo docker-compose logs --tail=20
         
         echo "🎉 Deployment completed successfully!"
