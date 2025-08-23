@@ -83,12 +83,16 @@ export async function processResume(filePath, userId = null) {
     if (userId && resumeText) {
       try {
         console.log("storing resume in database");
+        // Upsert resume: update if exists, else insert
         const { data, error } = await supabase
           .from('resumes')
-          .insert({
-            userid: userId,
-            resume_text: resumeText,
-          });
+          .upsert(
+            {
+              userid: userId,
+              resume_text: resumeText,
+            },
+            { onConflict: ['userid'] }
+          );
         
         if (error) {
           console.error('Error storing resume in database:', error);

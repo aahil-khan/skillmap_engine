@@ -251,6 +251,32 @@ app.get('/ats-score', authenticate, async (req, res) => {
   }
 });
 
+//Temporary route to fetch user skills
+app.get('/skills', authenticate, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const { data: skills } = await supabase
+      .from('skills')
+      .select('*')
+      .eq('userid', user_id);
+
+    if (!skills) {
+      return res.status(404).json({ error: 'Skills not found' });
+    }
+    console.log("Fetched skills for user:", skills);
+    res.json({
+      success: true,
+      skills
+    });
+
+  } catch (error) {
+    console.error('Error fetching skills:', error);
+    return res.status(500).json({ 
+        error: 'Failed to fetch skills',
+        details: error.message
+    });
+  }
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {

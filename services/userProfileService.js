@@ -108,7 +108,8 @@ export async function createUserProfile(profileData) {
 
     //calculate and store ats score
     const ats_score_raw = await atsScore(user_id);
-
+    console.log("Ats score raw", ats_score_raw);
+    
     const ats_score_value = typeof ats_score_raw === 'string'
       ? Number(ats_score_raw.replace('%', '').trim())
       : Number(ats_score_raw);
@@ -135,6 +136,57 @@ export async function createUserProfile(profileData) {
       }
     } else {
       console.log('Failed to calculate ATS Score');
+    }
+
+
+    //store skills in database
+    if (user_id && technical_skills && Array.isArray(technical_skills)) {
+      try {
+      console.log("storing skills in database");
+      // Flatten skills from all categories
+      const skillsToUpsert = [];
+      for (const category of technical_skills) {
+        if (category.skills && Array.isArray(category.skills)) {
+        for (const skill of category.skills) {
+          skillsToUpsert.push({
+            userid: user_id,
+            skill_name: skill.name,
+            skill_level: skill.level,
+            skill_category: category.category || null
+          });
+        }
+        } else if (category.skills && typeof category.skills === 'object') {
+        // Handle case where skills is a single object, not array
+        skillsToUpsert.push({
+          userid: user_id,
+          skill_name: category.skills.name,
+          skill_level: category.skills.level,
+          skill_category: category.category || null
+        });
+        }
+      }
+
+      if (skillsToUpsert.length > 0) {
+        const { data, error } = await supabase
+        .from('skills')
+        .upsert(
+          skillsToUpsert,
+          { onConflict: ['userid', 'skill_name'] }
+        );
+
+        if (error) {
+        console.error('Error storing skills in database:', error);
+        } else {
+        console.log('Skills successfully stored/updated in database for user:', user_id);
+        }
+      } else {
+        console.log("No skills to upsert for user:", user_id);
+      }
+      } catch (dbError) {
+      console.error('Database operation failed:', dbError);
+      }
+    } else {
+      console.log("didnt find user ID or skills");
     }
 
     return {
