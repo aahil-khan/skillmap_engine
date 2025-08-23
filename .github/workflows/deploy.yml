@@ -37,24 +37,19 @@ jobs:
         # Backup current .env file
         cp .env .env.backup || echo "No .env file to backup"
         
-        # Force stop and remove containers to avoid permission issues
+        # Gracefully stop containers using docker-compose only
         echo "🛑 Stopping existing containers..."
-        docker-compose down --timeout 30 || true
+        docker-compose down --timeout 30 || echo "No containers to stop or permission issue, continuing..."
         
-        # If docker-compose down fails, try to force remove just our project containers
-        if docker ps | grep -q "skillmap"; then
-          echo "⚠️ Containers still running, attempting gentle stop..."
-          docker stop $(docker ps --filter "name=skillmap" -q) 2>/dev/null || true
-          docker rm $(docker ps --filter "name=skillmap" -aq) 2>/dev/null || true
-        fi
+        # Don't try to force stop containers - let docker-compose handle it
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
         docker system prune -f --volumes || true
         
-        # Build and start containers
-        echo "🔨 Building and starting containers..."
-        docker-compose up --build -d --remove-orphans
+        # Build and start containers (this will handle stopping existing ones)
+        echo "🔨 Building and recreating containers..."
+        docker-compose up --build --force-recreate -d --remove-orphans
         
         # Wait for containers to be ready
         echo "⏳ Waiting for containers to start..."
