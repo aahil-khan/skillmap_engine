@@ -4,9 +4,8 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /usr/src/app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S skillmap -u 1001
+# Use existing node user (UID 1000) to match host user permissions
+# No need to create a new user since node user already exists with UID 1000
 
 # Install dependencies for PDF processing and text extraction
 RUN apk add --no-cache \
@@ -36,11 +35,11 @@ COPY . .
 
 # Create uploads directory and set permissions
 RUN mkdir -p uploads && \
-    chown -R skillmap:nodejs /usr/src/app && \
+    chown -R node:node /usr/src/app && \
     chmod -R 755 /usr/src/app
 
 # Switch to non-root user
-USER skillmap
+USER node
 
 # Expose port
 EXPOSE 5005
