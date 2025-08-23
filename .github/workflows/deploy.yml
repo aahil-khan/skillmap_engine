@@ -39,17 +39,17 @@ jobs:
         
         # Force stop and remove containers to avoid permission issues
         echo "🛑 Force stopping existing containers..."
-        sudo docker-compose down --timeout 5 || true
-        sudo docker stop $(sudo docker ps -aq) 2>/dev/null || true
-        sudo docker rm $(sudo docker ps -aq) 2>/dev/null || true
+        docker-compose down --timeout 5 || true
+        docker stop $(docker ps -aq) 2>/dev/null || true
+        docker rm $(docker ps -aq) 2>/dev/null || true
         
         # Remove old images and containers to free up space
         echo "🧹 Cleaning up old Docker resources..."
-        sudo docker system prune -f --volumes || true
+        docker system prune -f --volumes || true
         
         # Build and start containers
         echo "🔨 Building and starting containers..."
-        sudo docker-compose up --build -d --remove-orphans
+        docker-compose up --build -d --remove-orphans
         
         # Wait for containers to be ready
         echo "⏳ Waiting for containers to start..."
@@ -57,7 +57,7 @@ jobs:
         
         # Check container health
         echo "🏥 Checking container health..."
-        sudo docker-compose ps
+        docker-compose ps
         
         # Test health endpoint
         echo "🔍 Testing health endpoint..."
@@ -69,7 +69,7 @@ jobs:
             echo "❌ Health check failed, attempt $i/5"
             if [ $i -eq 5 ]; then
               echo "🚨 Health check failed after 5 attempts"
-              sudo docker-compose logs --tail=50
+              docker-compose logs --tail=50
               exit 1
             fi
             sleep 10
@@ -78,6 +78,6 @@ jobs:
         
         # Show recent logs
         echo "📋 Recent logs:"
-        sudo docker-compose logs --tail=20
+        docker-compose logs --tail=20
         
         echo "🎉 Deployment completed successfully!"
