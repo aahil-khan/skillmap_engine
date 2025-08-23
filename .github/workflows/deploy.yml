@@ -1,0 +1,98 @@
+name: Deploy SkillMap Engine
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  test:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests (if any)
+      run: npm test --if-present
+      
+    - name: Lint code (if configured)
+      run: npm run lint --if-present
+
+  deploy:
+    needs: test
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy SkillMap Engine
+      run: |
+        set -e
+        
+        echo "🚀 Starting deployment process..."
+        
+        # Navigate to project directory
+        cd ${{ github.workspace }}
+        
+        # Backup current .env file
+        cp .env .env.backup || echo "No .env file to backup"
+        
+        # Stop existing containers gracefully
+        echo "🛑 Stopping existing containers..."
+        docker-compose down --timeout 30 || true
+        
+        # Remove old images and containers to free up space
+        echo "🧹 Cleaning up old Docker resources..."
+        docker system prune -f --volumes || true
+        
+        # Build and start containers
+        echo "🔨 Building and starting containers..."
+        docker-compose up --build -d --remove-orphans
+        
+        # Wait for containers to be ready
+        echo "⏳ Waiting for containers to start..."
+        sleep 30
+        
+        # Check container health
+        echo "🏥 Checking container health..."
+        docker-compose ps
+        
+        # Test health endpoint
+        echo "🔍 Testing health endpoint..."
+        for i in {1..5}; do
+          if curl -f http://localhost:5005/health > /dev/null 2>&1; then
+            echo "✅ Health check passed!"
+            break
+          else
+            echo "❌ Health check failed, attempt $i/5"
+            if [ $i -eq 5 ]; then
+              echo "🚨 Health check failed after 5 attempts"
+              docker-compose logs --tail=50
+              exit 1
+            fi
+            sleep 10
+          fi
+        done
+        
+        # Show recent logs
+        echo "📋 Recent logs:"
+        docker-compose logs --tail=20
+        
+        echo "🎉 Deployment completed successfully!"
