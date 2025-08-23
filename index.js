@@ -76,7 +76,8 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
     }
 
     console.log(`Processing uploaded file: ${req.file.filename}`);
-    const profileData = await processResume(req.file.path);
+    const user_id = req.user.id; // Get authenticated user ID
+    const profileData = await processResume(req.file.path, user_id);
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
     res.json({
@@ -222,26 +223,29 @@ app.post('/convert-to-standalone', async (req, res) => {
   }
 });
 
-// ATS score evaluation
-app.post('/ats-score', async (req, res) => {
+// Temporary Route to fetch ATS score
+app.get('/ats-score', authenticate, async (req, res) => {
   try {
-    const { resumeText, jobDescription } = req.body;
+    const user_id = req.user.id;
+    const { data: atsScore } = await supabase
+      .from('resumes')
+      .select('ats_score')
+      .eq('userid', user_id)
+      .single();
 
-    if (!resumeText || !jobDescription) {
-      return res.status(400).json({ error: 'Both resumeText and jobDescription are required' });
+    if (!atsScore) {
+      return res.status(404).json({ error: 'ATS score not found' });
     }
-
-    const score = await atsScore(resumeText, jobDescription);
 
     res.json({
       success: true,
-      atsScore: score
+      atsScore
     });
 
   } catch (error) {
-    console.error('Error evaluating ATS score:', error);
+    console.error('Error fetching ATS score:', error);
     return res.status(500).json({ 
-        error: 'Failed to evaluate ATS score',
+        error: 'Failed to fetch ATS score',
         details: error.message
     });
   }

@@ -1,6 +1,8 @@
 import { openai } from '../config/openai.js';
 import { qdrant } from '../config/qdrant.js';
 import { ensureCollection } from '../utils/vectorStore.js';
+import { supabase } from '../config/supabase.js';
+import { atsScore } from './atsService.js';
 
 const COLLECTION_NAME = 'user_profiles';
 
@@ -83,7 +85,58 @@ export async function createUserProfile(profileData) {
     });
     
     console.log(`Successfully ${isUpdate ? 'updated' : 'stored'} user profile embedding for: ${name}`);
-    
+
+    if (user_id && goal) {
+      try {
+        console.log("updating goal in database");
+        const { data, error } = await supabase
+          .from('resumes')
+          .update({ current_goal: goal })
+          .eq('userid', user_id);
+
+        if (error) {
+          console.error('Error storing goal in database:', error);
+        } else {
+          console.log('Goal successfully stored/updated in database for user:', user_id);
+        }
+      } catch (dbError) {
+        console.error('Database operation failed:', dbError);
+      }
+    } else {
+      console.log("didnt find user ID or goal");
+    }
+
+    //calculate and store ats score
+    const ats_score_raw = await atsScore(user_id);
+
+    const ats_score_value = typeof ats_score_raw === 'string'
+      ? Number(ats_score_raw.replace('%', '').trim())
+      : Number(ats_score_raw);
+
+
+    if (typeof ats_score_value === 'number') {
+      console.log('ATS Score calculated successfully:', ats_score_value);
+
+      //store/update ats score
+      try {
+        console.log("updating ats score in database");
+        const { data, error } = await supabase
+          .from('resumes')
+          .update({ ats_score: ats_score_value })
+          .eq('userid', user_id);
+
+        if (error) {
+          console.error('Error storing ATS score in database:', error);
+        } else {
+          console.log('ATS score successfully stored/updated in database for user:', user_id);
+        }
+      } catch (dbError) {
+        console.error('Database operation failed:', dbError);
+      }
+    } else {
+      console.log('Failed to calculate ATS Score');
+    }
+
     return {
       success: true,
       message: `User profile ${isUpdate ? 'updated' : 'created'} successfully`,
