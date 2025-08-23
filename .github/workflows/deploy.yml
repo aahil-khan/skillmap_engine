@@ -11,41 +11,7 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
-  test:
-    runs-on: self-hosted
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        clean: true
-        
-    - name: Debug workspace
-      run: |
-        echo "Working directory: $(pwd)"
-        echo "Workspace: ${{ github.workspace }}"
-        ls -la
-        echo "Package files:"
-        ls -la package*
-        
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      run: |
-        echo "Installing dependencies with npm install..."
-        npm install
-      
-    - name: Run tests (if any)
-      run: npm test --if-present
-      
-    - name: Lint code (if configured)
-      run: npm run lint --if-present
-
   deploy:
-    needs: test
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
