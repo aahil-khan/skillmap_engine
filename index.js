@@ -16,6 +16,7 @@ import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
 import { convertToStandalone } from './services/convertToStandaloneService.js';
 import { atsScore } from './services/atsService.js';
+import { json } from 'stream/consumers';
 
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -276,6 +277,50 @@ app.get('/skills', authenticate, async (req, res) => {
         details: error.message
     });
   }
+});
+
+app.get('/experience', authenticate, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const { data: resume_text } = await supabase
+      .from('resumes')
+      .select('resume_text')
+      .eq('userid', user_id);
+
+    if (!resume_text) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    // resume_text is an array containing objects with resume_text property
+    const resumeData = Array.isArray(resume_text) && resume_text.length > 0 ? resume_text[0] : resume_text;
+    if (!resumeData || !resumeData.resume_text) {
+      return res.status(404).json({ error: 'Resume text not found' });
+    }
+
+    // Parse the resume text and extract the experience object
+    let experience = null;
+    try {
+      const parsed = JSON.parse(resumeData.resume_text);
+      experience = parsed.experience || [];
+    } catch (err) {
+      return res.status(400).json({ error: 'Resume text is not valid JSON', details: err.message });
+    }
+
+    console.log("Fetched experience for user:", experience);
+
+    res.json({
+      success: true,
+      experience
+    });
+
+  } catch(error){
+    console.error('Error fetching experience:', error);
+    return res.status(500).json({ 
+        error: 'Failed to fetch experience',
+        details: error.message
+    });
+  }
+
 });
 
 // Error handling middleware

@@ -37,25 +37,51 @@ export async function processResume(filePath, userId = null) {
             {
               role: 'user',
               content: `Here is the resume text:\n\n${resumeText}\n\nExtract the following fields in JSON format:
-                - name
-                - education (list of degrees, institutions, years)
-                - experience (companies, roles, technologies, durations)
-                - projects (name, description, technologies)
-                - technical_skills (list of skills categorized by taxonomy)
-                - inferred_areas_of_strength (based on their work/projects)
-                - possible_gaps (only if there's something obvious)
-                Return only valid JSON.
+              - name
+              - education (list of degrees, institutions, years)
+              - experience (companies, roles, technologies, durations)
+              - projects (name, description, technologies)
+              - technical_skills (list of skills categorized by taxonomy)
+              - inferred_areas_of_strength (based on their work/projects)
+              - possible_gaps (only if there's something obvious)
+              Return only valid JSON.
 
-                Note for technical_skills:
-                - They should be mapped to this taxonomy: ${JSON.stringify(skill_taxonomy)}
-                - If a skill is not in the taxonomy, include it as "other" with the skill name.
-                - If a skill is mentioned but not in the taxonomy, infer its category based on context.
-                - If a skill is not mentioned, do not include it in the output.
-                - Use strictly this format - {
-                        "category": "Data Structures & Algorithms",
-                        "skills": [ "Graphs", "Trees", "Sorting Algorithms" ] 
-                        }
-                `
+              Note for technical_skills:
+              - They should be mapped to this taxonomy: ${JSON.stringify(skill_taxonomy)}
+              - If a skill is not in the taxonomy, include it as "other" with the skill name.
+              - If a skill is mentioned but not in the taxonomy, infer its category based on context.
+              - If a skill is not mentioned, do not include it in the output.
+              - Use strictly this format - {
+                      "category": "Data Structures & Algorithms",
+                      "skills": [ "Graphs", "Trees", "Sorting Algorithms" ] 
+                      }
+
+              Note for experience:
+              - Use exactly this format for each experience entry:
+              {
+                "company": "Tech Startup Inc.",
+                "role": "Software Engineering Intern", 
+                "duration": "Jun 2023 - Aug 2023",
+                "description": "Developed React components and REST APIs for customer dashboard",
+                "technologies": ["React", "Node.js", "MongoDB", "Express.js"]
+              }
+              - Extract duration in "MMM YYYY - MMM YYYY" format
+              - Include all technologies mentioned as an array of strings
+              - If any field is missing, fill with null or appropriate default
+              - Return experience as an array of objects
+
+              Note for projects:
+              - Use exactly this format for each project:
+              {
+                "name": "Web Development Project",
+                "type": "Personal Project",
+                "duration": "Jan 2023 - May 2023", 
+                "description": "Built a full-stack e-commerce application with payment integration",
+                "technologies": ["JavaScript", "HTML", "CSS", "SQL", "Git"]
+              }
+              - Extract duration in "MMM YYYY - MMM YYYY" format if available
+              - Include all technologies as an array of strings
+              `
             }
           ],
           temperature: 0.3
@@ -80,7 +106,8 @@ export async function processResume(filePath, userId = null) {
     const parsed = JSON.parse(cleanedJson);
     
     // Store resume data in Supabase if userId is provided
-    if (userId && resumeText) {
+    // !!!changing from storing resume text to parsed resume text
+    if (userId && parsed) {
       try {
         console.log("storing resume in database");
         // Upsert resume: update if exists, else insert
@@ -89,7 +116,7 @@ export async function processResume(filePath, userId = null) {
           .upsert(
             {
               userid: userId,
-              resume_text: resumeText,
+              resume_text: parsed,
             },
             { onConflict: ['userid'] }
           );
