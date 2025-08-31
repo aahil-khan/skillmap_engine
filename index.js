@@ -18,6 +18,10 @@ import { convertToStandalone } from './services/convertToStandaloneService.js';
 import { atsScore } from './services/atsService.js';
 import { json } from 'stream/consumers';
 
+
+//temporary import
+import { getLeetCodeStats2 } from './services/leetcodeService2.js';
+
 const app = express();
 const PORT = process.env.PORT || 5005;
 
@@ -124,6 +128,23 @@ app.get('/api/leetcode/:username', async (req, res) => {
   }
  });
 
+//temporary route to teach boudam
+app.get('/api/leetcode2/:username', async (req, res) => {
+  try {
+    console.log("Fetching LeetCode stats route 2 was called");
+    const {username} = req.params;
+    const stats = await getLeetCodeStats2(username);
+
+    res.json({
+      username:stats.username,
+      totalSolved: stats.totalSolved,
+      acceptanceRate: stats.acceptanceRate
+    });
+  } catch (error) {
+    console.log("error in fetching LeetCode stats route:");
+    res.status(500).json({ error: error.message });
+  }
+ });
 
 
 //Leetcode Endpoint
