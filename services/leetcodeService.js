@@ -173,3 +173,4 @@ export async function getLeetCodeStats(username, sessionCookie = null) {
     throw new Error(`Failed to fetch LeetCode stats: ${error.message}`);
   }
 }
+

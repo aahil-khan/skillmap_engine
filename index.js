@@ -38,6 +38,11 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+//cors enable
+app.use(cors({
+  origin: "http://localhost:3000"
+}));
+
 // Supabase Auth middleware
 async function authenticate(req, res, next) {
   try {
@@ -98,6 +103,28 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
     });
   }
 });
+
+//connecting leetcodeStats
+app.get('/api/leetcode/:username', async (req, res) => {
+  try {
+    console.log("Fetching LeetCode stats route was called");
+    const {username} = req.params;
+    const stats = await getLeetCodeStats(username);
+
+    res.json({
+      username:stats.username,
+      totalSolved: stats.difficultyStats.All.solved,
+      acceptanceRate: (
+        (stats.difficultyStats.All.solved / stats.totalSubmissions) * 100
+      ).toFixed(2) + "%"
+    });
+  } catch (error) {
+    console.log("error in fetching LeetCode stats route:");
+    res.status(500).json({ error: error.message });
+  }
+ });
+
+
 
 //Leetcode Endpoint
 //add auth
