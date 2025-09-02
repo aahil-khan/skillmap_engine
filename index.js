@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import rateLimit from 'express-rate-limit';
+import fetch from 'node-fetch';
 import 'dotenv/config';
 
 // Import configurations
@@ -10,7 +11,7 @@ import { supabase } from './config/supabase.js';
 
 // Import services
 import { processResume } from './services/resumeService.js';
-import { getLeetCodeStats } from './services/leetcodeService.js';
+import { getLeetCodeStats, getLastnSubmissions, getLeetCodeLanguages, getLeetCodeTopics } from './services/leetcodeService.js';
 import { createUserProfile, updateUserProfile } from './services/userProfileService.js';
 import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
@@ -18,9 +19,6 @@ import { convertToStandalone } from './services/convertToStandaloneService.js';
 import { atsScore } from './services/atsService.js';
 import { json } from 'stream/consumers';
 
-
-//temporary import
-import { getLeetCodeStats2 } from './services/leetcodeService2.js';
 
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -108,44 +106,64 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
   }
 });
 
-//connecting leetcodeStats
+//connecting leetcodeStats for profile and problem distribution
 app.get('/api/leetcode/:username', async (req, res) => {
   try {
     console.log("Fetching LeetCode stats route was called");
     const {username} = req.params;
     const stats = await getLeetCodeStats(username);
+    res.json(stats);
 
-    res.json({
-      username:stats.username,
-      totalSolved: stats.difficultyStats.All.solved,
-      acceptanceRate: (
-        (stats.difficultyStats.All.solved / stats.totalSubmissions) * 100
-      ).toFixed(2) + "%"
-    });
   } catch (error) {
-    console.log("error in fetching LeetCode stats route:");
+    console.error("error in fetching LeetCode stats route:", error);
     res.status(500).json({ error: error.message });
   }
  });
 
-//temporary route to teach boudam
-app.get('/api/leetcode2/:username', async (req, res) => {
+
+
+ //generate last n submissions
+ app.get('/api/leetcode/:username/submission', async (req, res) => {
   try {
-    console.log("Fetching LeetCode stats route 2 was called");
-    const {username} = req.params;
-    const stats = await getLeetCodeStats2(username);
+    const { username } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5; // default 5
 
-    res.json({
-      username:stats.username,
-      totalSolved: stats.totalSolved,
-      acceptanceRate: stats.acceptanceRate
-    });
+    const stats = await getLastnSubmissions(username, limit);
+
+    res.json(stats);
   } catch (error) {
-    console.log("error in fetching LeetCode stats route:");
+    console.log("Error in fetching submissions route:", error);
     res.status(500).json({ error: error.message });
   }
- });
+});
 
+//generate languages used
+ app.get('/api/leetcode/:username/languages', async (req, res) =>{
+  try{
+    const{username} = req.params;
+    const languages = await getLeetCodeLanguages(username);
+
+    res.json(languages);
+  } catch (error) {
+    console.log("Error in fetching languages route:", error);
+    res.status(500).json({ error: error.message });
+  }
+ })
+
+
+ //fetch topic analysis
+ app.get('/api/leetcode/:username/topics', async (req, res) =>{
+  try{
+    const{username} = req.params;
+    const topics = await getLeetCodeTopics(username);
+
+    res.json(topics);
+
+  } catch (error) {
+    console.log("Error in fetching topics route:", error);
+    res.status(500).json({ error: error.message });
+  }
+ })
 
 //Leetcode Endpoint
 //add auth

@@ -6,171 +6,151 @@ import fetch from 'node-fetch';
  * @param {string} sessionCookie - Optional LEETCODE_SESSION cookie for detailed stats
  * @returns {Promise<Object>} Stats including solved counts by difficulty and basic info
  */
-export async function getLeetCodeStats(username, sessionCookie = null) {
-  const endpoint = 'https://leetcode.com/graphql';
+
+
+export async function getLeetCodeStats(username, _sessionCookie = null) {
+  try{
+      console.log("Starting getLeetCodeStats for username:", username);
+      const endpoint = "https://leetcode-api.aahil-khan.tech"
   
-  const query = `
-    query getUserProfile($username: String!) {
-      matchedUser(username: $username) {
-        username
-        profile {
-          ranking
-        }
-        submitStats {
-          acSubmissionNum {
-            difficulty
-            count
-            submissions
-          }
-        }
-        tagProblemCounts {
-          advanced {
-            tagName
-            tagSlug
-            problemsSolved
-          }
-          intermediate {
-            tagName
-            tagSlug
-            problemsSolved
-          }
-          fundamental {
-            tagName
-            tagSlug
-            problemsSolved
+      const response = await fetch(`${endpoint}/userProfile/${username}`);
+
+      /*console.log("API response status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}: ${response.statusText}`);
+      }*/
+      
+      const data = await response.json();
+      //console.log("API data keys:", Object.keys(data));
+      //console.log("matchedUserStats exists:", !!data.matchedUserStats);
+      
+      // Calculate acceptance rate from matchedUserStats (using submissions for accurate rate)
+      const acSubmissions = data.matchedUserStats?.acSubmissionNum?.find(item => item.difficulty === "All")?.submissions || 0;
+      const totalSubmissions = data.matchedUserStats?.totalSubmissionNum?.find(item => item.difficulty === "All")?.submissions || 0;
+      
+      //console.log("AC Submissions (submissions):", acSubmissions, "Total Submissions (submissions):", totalSubmissions);
+      
+      const acceptanceRate = totalSubmissions > 0 ? ((acSubmissions / totalSubmissions) * 100).toFixed(2) + "%" : "0%";
+
+      const res = {
+        "username": username,
+        "totalSolved": data.totalSolved || 0,
+        "acceptanceRate": acceptanceRate,
+        "ranking": data.ranking || null,
+        "problemStats": {
+          "easy": {
+            "solved": data.easySolved,
+            "total": data.totalEasy,
+            "percentage": data.totalEasy > 0 ? parseFloat(((data.easySolved / data.totalEasy) * 100).toFixed(2)) : 0,
+            "avgTime": 7
+          },
+          "medium": {
+            "solved": data.mediumSolved,
+            "total": data.totalMedium,
+            "percentage": data.totalMedium > 0 ? parseFloat(((data.mediumSolved / data.totalMedium) * 100).toFixed(2)) : 0,
+            "avgTime": 18
+          },
+          "hard": {
+            "solved": data.hardSolved,
+            "total": data.totalHard,
+            "percentage": data.totalHard > 0 ? parseFloat(((data.hardSolved / data.totalHard) * 100).toFixed(2)) : 0,
+            "avgTime": 41
           }
         }
       }
+      
+      console.log("Successfully created response object");
+      return res;
+  
+    } catch (error) {
+      console.error("Error in getLeetCodeStats:", error);
+      throw new Error(`Failed to fetch LeetCode stats: ${error.message}`);
     }
-  `;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  };
-
-  if (sessionCookie) {
-    headers['Cookie'] = `LEETCODE_SESSION=${sessionCookie}`;
   }
 
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        query,
-        variables: { username }
-      })
+
+  export async function getLastnSubmissions(username, limit, sessionCookie= null){
+    try {
+      const endpoint = "https://leetcode-api.aahil-khan.tech";
+      const response = await fetch(`${endpoint}/${username}/submission?limit=${limit}`);
+
+      const data = await response.json();
+      console.log("API data keys:", Object.keys(data));
+
+      const res ={
+        "username": username,
+        "submissions": data.submission || []
+      }
+
+      return res;
+    } catch (error) {
+      throw new Error(`Failed to fetch last ${limit} submission: ${error.message}`);
+    }
+  }
+
+  export async function getLeetCodeLanguages(username, sessionCookie= null){
+    try {
+      const endpoint = "https://leetcode-api.aahil-khan.tech";
+      const response = await fetch(`${endpoint}/languageStats?username=${username}`);
+      const data = await response.json();
+
+      const res = {
+        "username": username,
+        "languages": data.matchedUser?.languageProblemCount || []
+      }
+
+      return res;
+    } catch (error) {
+      throw new Error(`Failed to fetch programming languages: ${error.message}`);
+    }
+  }
+
+  export async function getLeetCodeTopics(username, sessionCookie= null){
+    try {
+      const endpoint = "https://leetcode-api.aahil-khan.tech";
+      const url = `${endpoint}/skillStats/${username}`;
+      console.log("Fetching from:", url);
+      
+      const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0", 
+        "Accept": "application/json"
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status} ${response.statusText}: ${errorText}`);
-    }
-
     const data = await response.json();
-    
-    if (data.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+
+    if (!data?.data?.matchedUser) {
+      return {
+        username,
+        topics: {},
+        error: "User not found from backend (check headers/casing)"
+      };
     }
 
-    if (!data.data || !data.data.matchedUser) {
-      throw new Error('User not found or no data returned');
-    }
-
-    const { matchedUser } = data.data;
-    
-    // Process difficulty stats
-    const difficultyStats = {};
-    let totalSubmissions = 0;
-    
-    if (matchedUser.submitStats?.acSubmissionNum) {
-      for (const item of matchedUser.submitStats.acSubmissionNum) {
-        difficultyStats[item.difficulty] = {
-          solved: item.count,
-          submissions: item.submissions
-        };
-        totalSubmissions += item.submissions;
-      }
-    }
-
-    // Process category stats with difficulty breakdown
-    const categoryStats = {
-      "Advanced": {},
-      "Intermediate": {},
-      "Fundamental": {}
+    return {
+      username,
+      topics: data.data.matchedUser.tagProblemCounts
     };
-    // List of all LeetCode categories (tags) as of 2024
-    const targetCategories = [
-      'Array', 'String', 'Hash Table', 'Math', 'Dynamic Programming', 'Sorting', 'Greedy', 'Depth-First Search', 'Binary Search', 'Breadth-First Search',
-      'Tree', 'Database', 'Two Pointers', 'Bit Manipulation', 'Stack', 'Design', 'Heap (Priority Queue)', 'Backtracking', 'Graph', 'Simulation',
-      'Sliding Window', 'Linked List', 'Recursion', 'Divide and Conquer', 'Union Find', 'Ordered Set', 'Trie', 'Geometry', 'Topological Sort',
-      'Segment Tree', 'Binary Indexed Tree', 'Number Theory', 'Combinatorics', 'Game Theory', 'Monotonic Stack', 'Shortest Path', 'Randomized',
-      'Memoization', 'Interactive', 'Data Stream', 'Rolling Hash', 'Concurrency', 'Minimum Spanning Tree', 'Counting', 'Suffix Array', 'Line Sweep',
-      'Eulerian Circuit', 'Hash Function', 'Probability and Statistics', 'Rejection Sampling', 'Reservoir Sampling', 'Quickselect', 'Bucket Sort',
-      'Fibonacci Heap', 'Radix Sort', 'Bitmask', 'Meet in the Middle', 'Brainteaser', 'Doubly-Linked List', 'Map', 'Queue', 'Union-Find', 'Matrix',
-      'DFS', 'BFS', 'Shortest Path', 'Topological Sort', 'Trie', 'Bit Manipulation', 'Sliding Window', 'Greedy', 'Backtracking', 'Divide and Conquer',
-      'Heap', 'Stack', 'Priority Queue', 'Segment Tree', 'Binary Indexed Tree', 'Ordered Set', 'Monotonic Stack', 'Suffix Array', 'Line Sweep',
-      'Geometry', 'Game Theory', 'Randomized', 'Memoization', 'Interactive', 'Data Stream', 'Concurrency', 'Minimum Spanning Tree', 'Counting',
-      'Hash Function', 'Probability and Statistics', 'Rejection Sampling', 'Reservoir Sampling', 'Quickselect', 'Bucket Sort', 'Fibonacci Heap',
-      'Radix Sort', 'Bitmask', 'Meet in the Middle', 'Brainteaser', 'Doubly-Linked List', 'Map', 'Queue', 'Union-Find', 'Matrix'
-    ];
-    
-    if (matchedUser.tagProblemCounts) {
-      // Process advanced (hard) problems
-      if (matchedUser.tagProblemCounts.advanced) {
-        for (const tag of matchedUser.tagProblemCounts.advanced) {
-          const categoryName = tag.tagName;
-          if (targetCategories.some(cat => categoryName.toLowerCase().includes(cat.toLowerCase()) || cat.toLowerCase().includes(categoryName.toLowerCase()))) {
-            categoryStats.Advanced[categoryName] = {
-              totalSolved: tag.problemsSolved
-            };
-          }
-        }
-      }
-      
-      // Process intermediate (medium) problems
-      if (matchedUser.tagProblemCounts.intermediate) {
-        for (const tag of matchedUser.tagProblemCounts.intermediate) {
-          const categoryName = tag.tagName;
-          if (targetCategories.some(cat => categoryName.toLowerCase().includes(cat.toLowerCase()) || cat.toLowerCase().includes(categoryName.toLowerCase()))) {
-            categoryStats.Intermediate[categoryName] = {
-              totalSolved: tag.problemsSolved
-            };
-          }
-        }
-      }
-      
-      // Process fundamental (easy) problems
-      if (matchedUser.tagProblemCounts.fundamental) {
-        for (const tag of matchedUser.tagProblemCounts.fundamental) {
-          const categoryName = tag.tagName;
-          if (targetCategories.some(cat => categoryName.toLowerCase().includes(cat.toLowerCase()) || cat.toLowerCase().includes(categoryName.toLowerCase()))) {
-            categoryStats.Fundamental[categoryName] = {
-              totalSolved: tag.problemsSolved
-            };
-          }
-        }
-      }
-    }
-
-    const result = {
-      username: matchedUser.username,
-      ranking: matchedUser.profile?.ranking || null,
-      difficultyStats,
-      categoryStats,
-      totalSubmissions,
-      hasDetailedStats: !!matchedUser.submitStats
-    };
-
-    // For debugging - pretty print
-    console.log('LeetCode Stats Result:');
-    console.log(JSON.stringify(result, null, 2));
-
-    return result;
-
   } catch (error) {
-    throw new Error(`Failed to fetch LeetCode stats: ${error.message}`);
+    throw new Error(`Failed to fetch topics: ${error.message}`);
   }
 }
 
+
+      /*const response = await fetch(`${endpoint}/skillStats?${username}`);
+      console.log("Fetching from:", response)
+
+      const data = await response.json();
+      console.log("SkillStats API raw data:", JSON.stringify(data, null, 2));
+      const res = {
+        username,
+        topics: data?.data?.matchedUser?.tagProblemCounts || {}
+      };
+
+      return res;
+    } catch (error) {
+      throw new Error(`Failed to fetch topics: ${error.message}`);
+    }
+  }*/
