@@ -7,6 +7,37 @@ import fetch from 'node-fetch';
  * @returns {Promise<Object>} Stats including solved counts by difficulty and basic info
  */
 
+//get name and other details
+export async function getLeetCodeProfile(username, _sessionCookie = null) {
+  try {
+    const endpoint = "https://leetcode-api.aahil-khan.tech";
+    const response = await fetch(`${endpoint}/${username}`);
+
+    const data = await response.json();
+    return {
+      "username": username,
+      "name": data.name || null,
+      "birthday": data.birthday || null,
+      "avatar": data.avatar || null,
+      "ranking": data.ranking || null,
+      "reputation": data.reputation || null,
+      "gitHub": data.gitHub || null,
+      "twitter": data.twitter || null,
+      "linkedIN": data.linkedIN || null,
+      "website": data.website || [],
+      "country": data.country || null,
+      "company": data.company || null,
+      "school": data.school || null,
+      "skillTags": data.skillTags || [],
+      "about": data.about || ""
+    };
+  } catch (error) {
+    console.error("Error in getLeetCodeProfile:", error);
+    throw new Error(`Failed to fetch LeetCode profile: ${error.message}`);
+  }
+}
+
+
 
 export async function getLeetCodeStats(username, _sessionCookie = null) {
   try{
@@ -139,18 +170,34 @@ export async function getLeetCodeStats(username, _sessionCookie = null) {
 }
 
 
-      /*const response = await fetch(`${endpoint}/skillStats?${username}`);
-      console.log("Fetching from:", response)
+//heatmap, streak, daily average, total active days
+export async function getLeetCodeActivity(username, sessionCookie= null){
+  try{
+    const endpoint = "https://leetcode-api.aahil-khan.tech";
+    const currentYear = new Date().getFullYear();
+    const url = `${endpoint}/userProfileCalendar?username=${username}&year=${currentYear}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    const userCal = data?.data?.matchedUser?.userCalendar;
+    if (!userCal) throw new Error("User calendar not found");
 
-      const data = await response.json();
-      console.log("SkillStats API raw data:", JSON.stringify(data, null, 2));
-      const res = {
-        username,
-        topics: data?.data?.matchedUser?.tagProblemCounts || {}
-      };
+    // Parse submission calendar (string -> JSON object)
+    const calendarData = JSON.parse(userCal.submissionCalendar);
 
-      return res;
-    } catch (error) {
-      throw new Error(`Failed to fetch topics: ${error.message}`);
-    }
-  }*/
+    // Convert to heatmap-friendly array
+    const submissions = Object.entries(calendarData).map(([ts, count]) => ({
+      date: new Date(Number(ts) * 1000).toISOString().split("T")[0],
+      count: count
+    }));
+
+    return {
+      username,
+      streak: userCal.streak,
+      totalActiveDays: userCal.totalActiveDays,
+      submissions
+    };
+  } catch (error) {
+    throw new Error(`Failed to fetch activity: ${error.message}`);
+  }
+}

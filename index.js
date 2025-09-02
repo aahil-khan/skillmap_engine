@@ -11,7 +11,7 @@ import { supabase } from './config/supabase.js';
 
 // Import services
 import { processResume } from './services/resumeService.js';
-import { getLeetCodeStats, getLastnSubmissions, getLeetCodeLanguages, getLeetCodeTopics } from './services/leetcodeService.js';
+import { getLeetCodeStats, getLastnSubmissions, getLeetCodeLanguages, getLeetCodeTopics, getLeetCodeActivity, getLeetCodeProfile } from './services/leetcodeService.js';
 import { createUserProfile, updateUserProfile } from './services/userProfileService.js';
 import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
@@ -106,7 +106,21 @@ app.post('/upload-resume', authenticate, upload.single('resume'), async (req, re
   }
 });
 
-//connecting leetcodeStats for profile and problem distribution
+//get leetcode profile
+app.get('/api/leetcode/:username/profile', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const profile = await getLeetCodeProfile(username);
+
+    res.json(profile);
+
+  } catch (error) {
+    console.error("Error in fetching LeetCode profile route:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//connecting leetcodeStats and problem distribution
 app.get('/api/leetcode/:username', async (req, res) => {
   try {
     console.log("Fetching LeetCode stats route was called");
@@ -161,6 +175,19 @@ app.get('/api/leetcode/:username', async (req, res) => {
 
   } catch (error) {
     console.log("Error in fetching topics route:", error);
+    res.status(500).json({ error: error.message });
+  }
+ })
+
+ //heatmap, streak, daily average, total active days
+ app.get('/api/leetcode/:username/activity', async (req, res) =>{
+  try{
+    const {username}= req.params;
+    const data = await getLeetCodeActivity(username);
+
+    res.json(data);
+  } catch (error) {
+    console.log("Error in fetching activity route:", error);
     res.status(500).json({ error: error.message });
   }
  })
