@@ -17,6 +17,7 @@ import { analyzeSkillGaps } from './services/skillGapService.js';
 import { searchSimilarSkills } from './services/skillSearchService.js';
 import { convertToStandalone } from './services/convertToStandaloneService.js';
 import { atsScore } from './services/atsService.js';
+import { suggestProblem } from './services/suggestProblemService.js';
 import { json } from 'stream/consumers';
 
 
@@ -191,6 +192,18 @@ app.get('/api/leetcode/:username', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
  })
+
+ //fetch skillmap suggested problems
+ app.get('/api/leetcode/:username/suggestions', async (req, res) => {
+   try {
+     const { username } = req.params;
+     const suggestions = await suggestProblem(username);
+     res.json(suggestions);
+   } catch (error) {
+     console.error("Error in fetching suggestions route:", error);
+     res.status(500).json({ error: error.message });
+   }
+ });
 
 //Leetcode Endpoint
 //add auth

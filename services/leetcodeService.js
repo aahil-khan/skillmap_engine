@@ -1,3 +1,4 @@
+import e from 'express';
 import fetch from 'node-fetch';
 
 /**
@@ -107,7 +108,6 @@ export async function getLeetCodeStats(username, _sessionCookie = null) {
       const response = await fetch(`${endpoint}/${username}/submission?limit=${limit}`);
 
       const data = await response.json();
-      console.log("API data keys:", Object.keys(data));
 
       const res ={
         "username": username,
