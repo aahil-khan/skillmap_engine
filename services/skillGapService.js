@@ -1,7 +1,17 @@
 import { openai } from '../config/openai.js';
 import { qdrant } from '../config/qdrant.js';
 import { skill_taxonomy } from '../taxonomy/skill_taxonomy.js';
+import { getModelConfig } from '../config/ai-models.js';
+import { validateAIResponse, extractJSON, skillGapAnalysisSchema } from '../schemas/ai-response-schemas.js';
 import fs from 'fs';
+
+// Logger helper
+const logger = {
+  info: (msg, data = {}) => console.log(`[INFO] ${msg}`, JSON.stringify(data)),
+  warn: (msg, data = {}) => console.warn(`[WARN] ${msg}`, JSON.stringify(data)),
+  error: (msg, data = {}) => console.error(`[ERROR] ${msg}`, JSON.stringify(data)),
+  debug: (msg, data = {}) => console.debug(`[DEBUG] ${msg}`, JSON.stringify(data))
+};
 
 const USER_PROFILES_COLLECTION = 'user_profiles';
 const SKILL_EMBEDDINGS_COLLECTION = 'skill_embeddings';
@@ -12,41 +22,52 @@ const SKILL_EMBEDDINGS_COLLECTION = 'skill_embeddings';
  * @returns {Object} Skill gap analysis with AI summary
  */
 export async function analyzeSkillGaps(user_id) {
+  const startTime = Date.now();
+  
   try {
+    logger.info('Starting skill gap analysis', { userId: user_id });
+    
     // Fetch user profile
     const userProfile = await fetchUserProfileById(user_id);
 
     if (!userProfile) {
+      logger.warn('User profile not found', { userId: user_id });
       return null;
     }
 
     const userSkillListWithLevels = userProfile.payload.skills_list_with_level || {};
     const userGoal = userProfile.payload.learning_goal || '';
+    const userName = userProfile.payload.user_name || 'User';
     
-    console.log(`Analyzing skill gaps for: ${user_id}`);
-    console.log(`User goal: ${userGoal}`);
-    console.log(`User skills:`, userSkillListWithLevels);
+    logger.info('User profile loaded', { 
+      userId: user_id,
+      goal: userGoal,
+      skillCount: Object.keys(userSkillListWithLevels).length 
+    });
 
     // Find relevant categories based on user goal
     const categories = await findTaxonomyCategories(userGoal);
-    console.log('Matching categories:', categories);
+    logger.info('Matching categories found', { count: categories.length, categories: categories.map(c => c.category) });
 
     // Analyze skill gaps for each category
     const skillGaps = await analyzeSkillGapsForCategories(categories, userSkillListWithLevels);
     
     // Generate AI summary
-    const summary = await generateSkillGapSummary(userGoal, skillGaps, userProfile.payload.user_name || 'User');
+    const summary = await generateSkillGapSummary(userGoal, skillGaps, userName);
     
-    // Save results to file (optional)
-    // const filename = `skill_gaps_${name.replace(/\s+/g, '_').toLowerCase()}.json`;
-    // const results = { skillGaps, summary };
-    // fs.writeFileSync(filename, JSON.stringify(results, null, 2));
-    // console.log(`Skill gaps analysis saved to ${filename}`);
+    const duration = Date.now() - startTime;
+    logger.info('Skill gap analysis completed', {
+      duration: `${duration}ms`,
+      userId: user_id,
+      categoriesAnalyzed: categories.length,
+      totalGaps: skillGaps.reduce((sum, cat) => sum + cat.skills.gaps.length, 0),
+      totalPresent: skillGaps.reduce((sum, cat) => sum + cat.skills.present.length, 0)
+    });
     
     return {
       success: true,
       user_id: user_id,
-      user: userProfile.payload.user_name || 'User',
+      user: userName,
       analysis: skillGaps,
       summary: summary,
       categories_analyzed: categories.length,
@@ -54,7 +75,14 @@ export async function analyzeSkillGaps(user_id) {
     };
     
   } catch (error) {
-    console.error('Error analyzing skill gaps:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Skill gap analysis failed', {
+      error: error.message,
+      errorType: error.constructor.name,
+      duration: `${duration}ms`,
+      userId: user_id,
+      stack: error.stack
+    });
     throw new Error(`Failed to analyze skill gaps: ${error.message}`);
   }
 }
@@ -80,11 +108,11 @@ async function fetchUserProfileById(user_id) {
       return existing[0];
     }
 
-    console.log(`No user profile found for ID: ${user_id}`);
+    logger.warn('No user profile found', { userId: user_id });
     return null;
     
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    logger.error('Error fetching user profile', { error: error.message, userId: user_id });
     throw error;
   }
 }
@@ -125,11 +153,11 @@ async function findTaxonomyCategories(userGoal) {
       }));
     }
     
-    console.log('No matching categories found for the user goal');
+    logger.info('No matching categories found for user goal', { goal: userGoal });
     return [];
     
   } catch (error) {
-    console.error('Error finding taxonomy categories:', error);
+    logger.error('Error finding taxonomy categories', { error: error.message });
     throw error;
   }
 }
@@ -144,18 +172,25 @@ async function analyzeSkillGapsForCategories(categories, userSkillListWithLevels
   const analysis = [];
   
   for (const categoryInfo of categories) {
-    console.log(`\nAnalyzing category: ${categoryInfo.category}`);
+    logger.debug('Analyzing category', { category: categoryInfo.category });
     
     // Find matching taxonomy category
     const matchResult = findMatchingTaxonomyCategory(categoryInfo.category);
     
     if (matchResult.similarity < 0.7) {
-      console.log(`Low similarity (${matchResult.similarity.toFixed(2)}) for category: ${categoryInfo.category}`);
+      logger.debug('Low similarity, skipping category', { 
+        category: categoryInfo.category,
+        similarity: matchResult.similarity 
+      });
       continue;
     }
     
     const taxonomyCategory = matchResult.category;
-    console.log(`Matched with taxonomy category: ${taxonomyCategory.category} (similarity: ${matchResult.similarity.toFixed(2)})`);
+    logger.debug('Matched with taxonomy category', { 
+      detectedCategory: categoryInfo.category,
+      taxonomyCategory: taxonomyCategory.category,
+      similarity: matchResult.similarity 
+    });
     
     const categoryAnalysis = {
       detected_category: categoryInfo.category,
@@ -342,7 +377,12 @@ function areSkillsSimilar(skill1, skill2) {
  * @returns {string} AI-generated summary
  */
 async function generateSkillGapSummary(userGoal, skillGaps, userName) {
+  const startTime = Date.now();
+  const modelConfig = getModelConfig('skillGapAnalysis');
+  
   try {
+    logger.info('Generating skill gap summary', { userName, goal: userGoal });
+    
     // Prepare analysis data for the prompt
     let analysisText = `User: ${userName}\nGoal: ${userGoal}\n\nSkill Analysis:\n`;
     
@@ -371,51 +411,152 @@ async function generateSkillGapSummary(userGoal, skillGaps, userName) {
       }
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a skilled career advisor specializing in technical skill development. Generate a personalized, encouraging, and actionable summary for someone looking to improve their skills. 
+    let response = null;
+    let lastError = null;
+    const maxAttempts = modelConfig.retry?.maxRetries || 3;
+    
+    for (let attempts = 1; attempts <= maxAttempts; attempts++) {
+      try {
+        logger.info(`Calling OpenAI API (attempt ${attempts}/${maxAttempts})`, { 
+          model: modelConfig.model,
+          temperature: modelConfig.temperature 
+        });
+        
+        response = await openai.chat.completions.create({
+          model: modelConfig.model,
+          messages: [
+            {
+              role: "system",
+              content: `You are a skilled career advisor specializing in technical skill development. Generate a personalized, encouraging, and actionable summary for someone looking to improve their skills. 
 
-Format your response exactly like this:
+You MUST respond with ONLY valid JSON in this EXACT format:
+{
+  "goal_category": "string - main category they're targeting",
+  "strengths": ["skill1", "skill2"],
+  "strengths_summary": "string - encouraging summary of their strong skills",
+  "missing_skills": [
+    {"skill": "string", "reason": "string - why it's important"}
+  ],
+  "skills_to_improve": [
+    {"skill": "string", "current_level": "string", "advice": "string - specific advice"}
+  ],
+  "learning_path": [
+    "string - step 1",
+    "string - step 2",
+    "string - step 3"
+  ],
+  "next_steps": "string - practical advice for building portfolio/projects"
+}
 
-Based on your goal, I can see you're targeting [category].
-
-        Your Strengths:
-        [Mention their strong skills and encourage them]
-
-        Areas to Focus On:
-        Missing Skills (Priority):
-        • [skill] - [brief reason why it's important]
-        • [skill] - [brief reason why it's important]
-
-        Skills to Improve:
-        • [skill] - Currently at [level], focus on [specific advice]
-
-        Recommended Learning Path:
-        1. [First step with specific skill]
-        2. [Second step building on first]
-        3. [Third step for practical application]
-
-        Next Steps:
-        [Practical advice for building portfolio/projects that combine their strengths with new skills]
-
-        Keep it encouraging, specific, and actionable. Return the response in HTML format with appropriate tags for emphasis and structure. There should be double line breaks to separate sections and a readable font size. Use <strong> for emphasis where appropriate.`,
-        },
-        {
-          role: "user",
-          content: analysisText
+Be encouraging, specific, and actionable. Do not include any markdown, explanations, or text outside the JSON.`
+            },
+            {
+              role: "user",
+              content: analysisText
+            }
+          ],
+          max_tokens: 800,
+          temperature: modelConfig.temperature,
+          response_format: modelConfig.response_format
+        });
+        
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        lastError = error;
+        logger.warn(`OpenAI API call failed (attempt ${attempts}/${maxAttempts})`, {
+          error: error.message,
+          errorType: error.constructor.name
+        });
+        
+        if (error.message?.includes('timeout') && attempts < maxAttempts) {
+          const delay = 2000 * attempts;
+          logger.info(`Retrying after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else if (attempts >= maxAttempts) {
+          throw error;
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('Failed to get response from OpenAI');
+    }
+
+    const jsonText = response.choices[0].message.content;
+    logger.debug('OpenAI response received', { responseLength: jsonText.length });
+    
+    // Extract and validate JSON
+    const extracted = extractJSON(jsonText);
+    const validated = validateAIResponse(extracted, skillGapAnalysisSchema, 'skill gap analysis');
+    
+    // Convert validated JSON to HTML format for display
+    const htmlSummary = formatSkillGapSummaryAsHTML(validated);
+    
+    const duration = Date.now() - startTime;
+    logger.info('Skill gap summary generated successfully', {
+      duration: `${duration}ms`,
+      missingSkillsCount: validated.missing_skills?.length || 0,
+      strengthsCount: validated.strengths?.length || 0
     });
 
-    return response.choices[0].message.content;
+    return htmlSummary;
     
   } catch (error) {
-    console.error('Error generating skill gap summary:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Failed to generate skill gap summary', {
+      error: error.message,
+      duration: `${duration}ms`,
+      userName
+    });
     return "Unable to generate summary at this time. Please review the detailed analysis above.";
   }
+}
+
+/**
+ * Format validated skill gap data as HTML
+ * @param {Object} data - Validated skill gap data
+ * @returns {string} HTML formatted summary
+ */
+function formatSkillGapSummaryAsHTML(data) {
+  let html = `<p>Based on your goal, I can see you're targeting <strong>${data.goal_category}</strong>.</p>\n\n`;
+  
+  if (data.strengths && data.strengths.length > 0) {
+    html += `<p><strong>Your Strengths:</strong><br>\n`;
+    html += `${data.strengths_summary || 'You have a solid foundation in: ' + data.strengths.join(', ')}</p>\n\n`;
+  }
+  
+  html += `<p><strong>Areas to Focus On:</strong></p>\n\n`;
+  
+  if (data.missing_skills && data.missing_skills.length > 0) {
+    html += `<p><strong>Missing Skills (Priority):</strong></p>\n<ul>\n`;
+    data.missing_skills.forEach(item => {
+      html += `<li><strong>${item.skill}</strong> - ${item.reason}</li>\n`;
+    });
+    html += `</ul>\n\n`;
+  }
+  
+  if (data.skills_to_improve && data.skills_to_improve.length > 0) {
+    html += `<p><strong>Skills to Improve:</strong></p>\n<ul>\n`;
+    data.skills_to_improve.forEach(item => {
+      html += `<li><strong>${item.skill}</strong> - Currently at ${item.current_level}, ${item.advice}</li>\n`;
+    });
+    html += `</ul>\n\n`;
+  }
+  
+  if (data.learning_path && data.learning_path.length > 0) {
+    html += `<p><strong>Recommended Learning Path:</strong></p>\n<ol>\n`;
+    data.learning_path.forEach(step => {
+      html += `<li>${step}</li>\n`;
+    });
+    html += `</ol>\n\n`;
+  }
+  
+  if (data.next_steps) {
+    html += `<p><strong>Next Steps:</strong><br>\n${data.next_steps}</p>`;
+  }
+  
+  return html;
 }
