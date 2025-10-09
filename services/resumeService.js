@@ -28,7 +28,7 @@ export async function processResume(filePath, userId = null) {
       try {
         console.log(`Attempting OpenAI request (attempt ${attempts + 1}/${maxAttempts})`);
         response = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-3.5-tuasdfrbo',
           messages: [
             {
               role: 'system',

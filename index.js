@@ -18,8 +18,31 @@ import { searchSimilarSkills } from './services/skillSearchService.js';
 import { convertToStandalone } from './services/convertToStandaloneService.js';
 import { atsScore } from './services/atsService.js';
 import { suggestProblem } from './services/suggestProblemService.js';
-import { json } from 'stream/consumers';
 
+// Import middleware
+import { errorHandler, asyncHandler, notFoundHandler, timeoutHandler } from './middleware/errorHandler.js';
+import { requestId, requestLogger, slowRequestLogger } from './middleware/requestLogger.js';
+
+// Import error classes
+import { AuthenticationError, ValidationError, NotFoundError } from './utils/errors.js';
+
+// Import logger
+import logger from './utils/logger.js';
+
+// Import validation schemas
+import {
+  validateBody,
+  validateQuery,
+  validateParams,
+  userProfileSchema,
+  skillGapAnalysisSchema,
+  skillSearchSchema,
+  convertToStandaloneSchema,
+  leetcodeUsernameSchema,
+  leetcodeUsernameParamSchema,
+  leetcodeStatsSchema,
+  leetcodeSubmissionsSchema
+} from './schemas/validation.js';
 
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -36,33 +59,40 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-// Middleware
+// Middleware - ORDER MATTERS!
+// 1. Request ID and logging
+app.use(requestId);
+app.use(requestLogger);
+app.use(slowRequestLogger(3000)); // Log requests taking more than 3 seconds
+
+// 2. Security and parsing
 app.use(limiter);
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 
-//cors enable
-app.use(cors({
-  origin: "http://localhost:3000"
-}));
+// 3. Request timeout (30 seconds)
+app.use(timeoutHandler(30000));
 
 // Supabase Auth middleware
 async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+      throw new AuthenticationError('Missing or invalid Authorization header');
     }
     const token = authHeader.split(' ')[1];
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data?.user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+      throw new AuthenticationError('Invalid or expired token');
     }
     req.user = data.user;
+    logger.debug('User authenticated', { userId: data.user.id, requestId: req.id });
     next();
   } catch (err) {
-    console.error('Authentication error:', err);
-    return res.status(401).json({ error: 'Authentication failed', details: err.message });
+    next(err);
   }
 }
 
@@ -73,387 +103,282 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'SkillMap Engine API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    requestId: req.id
   });
 });
 
 // Resume processing endpoint
-app.post('/upload-resume', authenticate, upload.single('resume'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+app.post('/upload-resume', authenticate, upload.single('resume'), asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ValidationError('No file uploaded');
+  }
 
-    console.log(`Processing uploaded file: ${req.file.filename}`);
-    const user_id = req.user.id; // Get authenticated user ID
+  logger.info('Processing uploaded file', { 
+    filename: req.file.filename,
+    size: req.file.size,
+    userId: req.user.id,
+    requestId: req.id
+  });
+
+  try {
+    const user_id = req.user.id;
     const profileData = await processResume(req.file.path, user_id);
+    
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
+    
+    logger.info('Resume processed successfully', {
+      userId: user_id,
+      requestId: req.id
+    });
+
     res.json({
       success: true,
       profile: profileData
     });
-
   } catch (error) {
-    console.error('Error processing resume:', error);
     // Clean up file if it exists
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ 
-      error: 'Failed to process resume',
-      details: error.message 
-    });
+    throw error;
   }
-});
+}));
 
 //get leetcode profile
-app.get('/api/leetcode/:username/profile', async (req, res) => {
-  try {
-    const { username } = req.params;
-    const profile = await getLeetCodeProfile(username);
-
-    res.json(profile);
-
-  } catch (error) {
-    console.error("Error in fetching LeetCode profile route:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+app.get('/api/leetcode/:username/profile', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const { username } = req.validatedParams;
+  
+  logger.info('Fetching LeetCode profile', { username, requestId: req.id });
+  const profile = await getLeetCodeProfile(username);
+  res.json(profile);
+}));
 
 //connecting leetcodeStats and problem distribution
-app.get('/api/leetcode/:username', async (req, res) => {
-  try {
-    console.log("Fetching LeetCode stats route was called");
-    const {username} = req.params;
-    const stats = await getLeetCodeStats(username);
-    res.json(stats);
+app.get('/api/leetcode/:username', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const {username} = req.validatedParams;
+  
+  logger.info('Fetching LeetCode stats', { username, requestId: req.id });
+  const stats = await getLeetCodeStats(username);
+  res.json(stats);
+}));
 
-  } catch (error) {
-    console.error("error in fetching LeetCode stats route:", error);
-    res.status(500).json({ error: error.message });
-  }
- });
-
-
-
- //generate last n submissions
- app.get('/api/leetcode/:username/submission', async (req, res) => {
-  try {
-    const { username } = req.params;
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5; // default 5
-
-    const stats = await getLastnSubmissions(username, limit);
-
-    res.json(stats);
-  } catch (error) {
-    console.log("Error in fetching submissions route:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+//generate last n submissions
+app.get('/api/leetcode/:username/submission', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const { username } = req.validatedParams;
+  
+  const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
+  
+  logger.info('Fetching LeetCode submissions', { username, limit, requestId: req.id });
+  const stats = await getLastnSubmissions(username, limit);
+  res.json(stats);
+}));
 
 //generate languages used
- app.get('/api/leetcode/:username/languages', async (req, res) =>{
-  try{
-    const{username} = req.params;
-    const languages = await getLeetCodeLanguages(username);
+app.get('/api/leetcode/:username/languages', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const{username} = req.validatedParams;
+  
+  logger.info('Fetching LeetCode languages', { username, requestId: req.id });
+  const languages = await getLeetCodeLanguages(username);
+  res.json(languages);
+}));
 
-    res.json(languages);
-  } catch (error) {
-    console.log("Error in fetching languages route:", error);
-    res.status(500).json({ error: error.message });
-  }
- })
+//fetch topic analysis
+app.get('/api/leetcode/:username/topics', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const{username} = req.validatedParams;
+  
+  logger.info('Fetching LeetCode topics', { username, requestId: req.id });
+  const topics = await getLeetCodeTopics(username);
+  res.json(topics);
+}));
 
+//heatmap, streak, daily average, total active days
+app.get('/api/leetcode/:username/activity', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const {username}= req.validatedParams;
+  
+  logger.info('Fetching LeetCode activity', { username, requestId: req.id });
+  const data = await getLeetCodeActivity(username);
+  res.json(data);
+}));
 
- //fetch topic analysis
- app.get('/api/leetcode/:username/topics', async (req, res) =>{
-  try{
-    const{username} = req.params;
-    const topics = await getLeetCodeTopics(username);
-
-    res.json(topics);
-
-  } catch (error) {
-    console.log("Error in fetching topics route:", error);
-    res.status(500).json({ error: error.message });
-  }
- })
-
- //heatmap, streak, daily average, total active days
- app.get('/api/leetcode/:username/activity', async (req, res) =>{
-  try{
-    const {username}= req.params;
-    const data = await getLeetCodeActivity(username);
-
-    res.json(data);
-  } catch (error) {
-    console.log("Error in fetching activity route:", error);
-    res.status(500).json({ error: error.message });
-  }
- })
-
- //fetch skillmap suggested problems
- app.get('/api/leetcode/:username/suggestions', async (req, res) => {
-   try {
-     const { username } = req.params;
-     const suggestions = await suggestProblem(username);
-     res.json(suggestions);
-   } catch (error) {
-     console.error("Error in fetching suggestions route:", error);
-     res.status(500).json({ error: error.message });
-   }
- });
+//fetch skillmap suggested problems
+app.get('/api/leetcode/:username/suggestions', validateParams(leetcodeUsernameParamSchema), asyncHandler(async (req, res) => {
+  const { username } = req.validatedParams;
+  
+  logger.info('Fetching LeetCode problem suggestions', { username, requestId: req.id });
+  const suggestions = await suggestProblem(username);
+  res.json(suggestions);
+}));
 
 //Leetcode Endpoint
-//add auth
-app.post('/leetcode-stats', async (req, res) => {
-  try {
-    const { username } = req.body;
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
+app.post('/leetcode-stats', authenticate, validateBody(leetcodeStatsSchema), asyncHandler(async (req, res) => {
+  const { username } = req.validatedBody;
 
-    const stats = await getLeetCodeStats(username);
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching LeetCode stats:', error);
-    res.status(500).json({
-      error: 'Failed to fetch LeetCode stats',
-      details: error.message
-    });
-  }
-});
+  logger.info('Fetching LeetCode stats', { username, requestId: req.id });
+  
+  const stats = await getLeetCodeStats(username);
+  res.json(stats);
+}));
 
 // User profile management
-app.post('/user-profile', authenticate, async (req, res) => {
-  try {
-    const user_id = req.user.id; // Use authenticated user ID
-    const { name, technical_skills, inferred_areas_of_strength, goal, experience, projects } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
+app.post('/user-profile', authenticate, validateBody(userProfileSchema), asyncHandler(async (req, res) => {
+  const user_id = req.user.id;
+  const { name, technical_skills, inferred_areas_of_strength, goal, experience, projects } = req.validatedBody;
 
-    const result = await createUserProfile({
-      user_id,
-      name,
-      technical_skills,
-      inferred_areas_of_strength,
-      goal,
-      experience,
-      projects
-    });
-    
-    res.json(result);
-    
-  } catch (error) {
-    console.error('Error creating/updating user profile:', error);
-    res.status(500).json({ 
-      error: 'Failed to process user profile',
-      details: error.message 
-    });
-  }
-});
+  logger.info('Creating/updating user profile', { userId: user_id, requestId: req.id });
+
+  const result = await createUserProfile({
+    user_id,
+    name,
+    technical_skills,
+    inferred_areas_of_strength,
+    goal,
+    experience,
+    projects
+  });
+  
+  logger.info('User profile processed successfully', { userId: user_id, requestId: req.id });
+  res.json(result);
+}));
 
 // Skill gap analysis
-app.post('/analyze-skill-gaps', authenticate, async (req, res) => {
-  try {
-    
-    const user_id = req.user.id; // Use authenticated user ID
-    console.log(`Analyzing skill gaps for user ID: ${user_id}`);
-    const analysis = await analyzeSkillGaps(user_id);
+app.post('/analyze-skill-gaps', authenticate, asyncHandler(async (req, res) => {
+  const user_id = req.user.id;
 
-    if (!analysis) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json(analysis);
-    
-  } catch (error) {
-    console.error('Error analyzing skill gaps:', error);
-    res.status(500).json({ 
-      error: 'Failed to analyze skill gaps',
-      details: error.message 
-    });
+  logger.info('Analyzing skill gaps', { userId: user_id, requestId: req.id });
+
+  const analysis = await analyzeSkillGaps(user_id);
+
+  if (!analysis) {
+    throw new NotFoundError('User profile');
   }
-});
+  
+  logger.info('Skill gap analysis completed', { userId: user_id, requestId: req.id });
+  res.json(analysis);
+}));
 
 // Skill similarity search
-app.post('/search-skills', async (req, res) => {
-  try {
-    const { query, limit = 10 } = req.body;
-    
-    if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
-    }
-    
-    const results = await searchSimilarSkills(query, limit);
-    
-    res.json({
-      success: true,
-      query,
-      results
-    });
-    
-  } catch (error) {
-    console.error('Error searching skills:', error);
-    res.status(500).json({ 
-      error: 'Failed to search skills',
-      details: error.message 
-    });
-  }
-});
+app.post('/search-skills', authenticate, validateBody(skillSearchSchema), asyncHandler(async (req, res) => {
+  const { query, limit = 10 } = req.validatedBody;
+
+  logger.info('Searching skills', { query, limit, requestId: req.id });
+
+  const results = await searchSimilarSkills(query, limit);
+  
+  res.json({
+    success: true,
+    query,
+    results
+  });
+}));
 
 // Convert goal to standalone question
-app.post('/convert-to-standalone', async (req, res) => {
-  try {
-    const { goal } = req.body;
+app.post('/convert-to-standalone', authenticate, validateBody(convertToStandaloneSchema), asyncHandler(async (req, res) => {
+  const { goal } = req.validatedBody;
 
-    if (!goal) {
-      return res.status(400).json({ error: 'Goal is required' });
-    }
+  logger.info('Converting goal to standalone', { requestId: req.id });
 
-    const goalResponse = await convertToStandalone(goal);
+  const goalResponse = await convertToStandalone(goal);
 
-    res.json({
-      success: true,
-      goalResponse
-    });
-
-  } catch (error) {
-    console.error('Error converting to standalone question:', error);
-    return res.status(500).json({ 
-        error: 'Failed to convert to standalone question',
-        details: error.message
-    });
-  }
-});
+  res.json({
+    success: true,
+    goalResponse
+  });
+}));
 
 // Temporary Route to fetch ATS score
-app.get('/ats-score', authenticate, async (req, res) => {
-  try {
-    const user_id = req.user.id;
-    const { data: atsScore } = await supabase
-      .from('resumes')
-      .select('ats_score')
-      .eq('userid', user_id)
-      .single();
+app.get('/ats-score', authenticate, asyncHandler(async (req, res) => {
+  const user_id = req.user.id;
+  
+  logger.info('Fetching ATS score', { userId: user_id, requestId: req.id });
+  
+  const { data: atsScore } = await supabase
+    .from('resumes')
+    .select('ats_score')
+    .eq('userid', user_id)
+    .single();
 
-    if (!atsScore) {
-      return res.status(404).json({ error: 'ATS score not found' });
-    }
-
-    res.json({
-      success: true,
-      atsScore
-    });
-
-  } catch (error) {
-    console.error('Error fetching ATS score:', error);
-    return res.status(500).json({ 
-        error: 'Failed to fetch ATS score',
-        details: error.message
-    });
+  if (!atsScore) {
+    throw new NotFoundError('ATS score');
   }
-});
+
+  res.json({
+    success: true,
+    atsScore
+  });
+}));
 
 //Temporary route to fetch user skills
-app.get('/skills', authenticate, async (req, res) => {
-  try {
-    const user_id = req.user.id;
-    const { data: skills } = await supabase
-      .from('skills')
-      .select('*')
-      .eq('userid', user_id);
+app.get('/skills', authenticate, asyncHandler(async (req, res) => {
+  const user_id = req.user.id;
+  
+  logger.info('Fetching skills', { userId: user_id, requestId: req.id });
+  
+  const { data: skills } = await supabase
+    .from('skills')
+    .select('*')
+    .eq('userid', user_id);
 
-    if (!skills) {
-      return res.status(404).json({ error: 'Skills not found' });
-    }
-    console.log("Fetched skills for user:", skills);
-    res.json({
-      success: true,
-      skills
-    });
-
-  } catch (error) {
-    console.error('Error fetching skills:', error);
-    return res.status(500).json({ 
-        error: 'Failed to fetch skills',
-        details: error.message
-    });
-  }
-});
-
-app.get('/experience', authenticate, async (req, res) => {
-  try {
-    const user_id = req.user.id;
-    const { data: resume_text } = await supabase
-      .from('resumes')
-      .select('resume_text')
-      .eq('userid', user_id);
-
-    if (!resume_text) {
-      return res.status(404).json({ error: 'Resume not found' });
-    }
-
-    // resume_text is an array containing objects with resume_text property
-    const resumeData = Array.isArray(resume_text) && resume_text.length > 0 ? resume_text[0] : resume_text;
-    if (!resumeData || !resumeData.resume_text) {
-      return res.status(404).json({ error: 'Resume text not found' });
-    }
-
-    // Parse the resume text and extract the experience object
-    let experience = null;
-    try {
-      const parsed = JSON.parse(resumeData.resume_text);
-      experience = parsed.experience || [];
-    } catch (err) {
-      return res.status(400).json({ error: 'Resume text is not valid JSON', details: err.message });
-    }
-
-    console.log("Fetched experience for user:", experience);
-
-    res.json({
-      success: true,
-      experience
-    });
-
-  } catch(error){
-    console.error('Error fetching experience:', error);
-    return res.status(500).json({ 
-        error: 'Failed to fetch experience',
-        details: error.message
-    });
+  if (!skills) {
+    throw new NotFoundError('Skills');
   }
 
-});
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  logger.debug('Fetched skills for user', { userId: user_id, skillCount: skills.length });
+  
+  res.json({
+    success: true,
+    skills
   });
-});
+}));
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ 
-    error: 'Endpoint not found',
-    availableEndpoints: [
-      'GET /health',
-      'POST /upload-resume',
-      'POST /user-profile', 
-      'POST /analyze-skill-gaps',
-      'POST /search-skills'
-    ]
+app.get('/experience', authenticate, asyncHandler(async (req, res) => {
+  const user_id = req.user.id;
+  
+  logger.info('Fetching experience', { userId: user_id, requestId: req.id });
+  
+  const { data: resume_text } = await supabase
+    .from('resumes')
+    .select('resume_text')
+    .eq('userid', user_id);
+
+  if (!resume_text) {
+    throw new NotFoundError('Resume');
+  }
+
+  // resume_text is an array containing objects with resume_text property
+  const resumeData = Array.isArray(resume_text) && resume_text.length > 0 ? resume_text[0] : resume_text;
+  if (!resumeData || !resumeData.resume_text) {
+    throw new NotFoundError('Resume text');
+  }
+
+  // Parse the resume text and extract the experience object
+  let experience = null;
+  try {
+    const parsed = JSON.parse(resumeData.resume_text);
+    experience = parsed.experience || [];
+  } catch (err) {
+    throw new ValidationError('Resume text is not valid JSON', err.message);
+  }
+
+  logger.debug('Fetched experience for user', { userId: user_id });
+
+  res.json({
+    success: true,
+    experience
   });
-});
+}));
+
+// Error handling middleware - MUST BE AFTER ALL ROUTES
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
+  logger.info(`SkillMap Engine API started`, { 
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development'
+  });
   console.log(`🚀 SkillMap Engine API running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📝 API Documentation:`);
@@ -461,4 +386,6 @@ app.listen(PORT, () => {
   console.log(`   👤 User profile: POST /user-profile`);
   console.log(`   🔍 Skill gaps: POST /analyze-skill-gaps`);
   console.log(`   🔎 Search skills: POST /search-skills`);
+  console.log(`   🎯 Convert goal: POST /convert-to-standalone`);
+  console.log(`   📊 LeetCode stats: POST /leetcode-stats`);
 });
