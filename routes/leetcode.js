@@ -103,7 +103,9 @@ router.get('/api/leetcode/:username/suggestions', validateParams(leetcodeUsernam
   
   logger.info('Fetching LeetCode problem suggestions', { username, requestId: req.id });
   const suggestions = await suggestProblem(username);
-  res.json({ success: true, data: suggestions });
+  
+  // Return the suggestions directly for easier frontend consumption
+  res.json(suggestions);
 }));
 
 /**
