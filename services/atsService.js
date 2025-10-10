@@ -27,34 +27,50 @@ export async function atsScore(user_id) {
             throw new Error('Invalid user_id input. Please provide a valid string.');
         }
 
-        const { data, error: userError } = await supabase
+        // Fetch resume data (raw_text for ATS analysis)
+        const { data: resumeData, error: resumeError } = await supabase
             .from('resumes')
-            .select('resume_text, current_goal')
+            .select('raw_text')
             .eq('userid', user_id)
             .single();
 
-        if (userError) {
-            logger.error('Error fetching user profile', { 
-                error: userError.message,
+        if (resumeError) {
+            logger.error('Error fetching resume', { 
+                error: resumeError.message,
                 userId: user_id 
             });
-            throw new Error(`Failed to fetch user profile: ${userError.message}`);
+            throw new Error(`Failed to fetch resume: ${resumeError.message}`);
         }
 
-        const { resume_text, current_goal } = data;
+        // Fetch active learning goal
+        const { data: goalData, error: goalError } = await supabase
+            .from('learning_goals')
+            .select('refined_goal')
+            .eq('userid', user_id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (goalError) {
+            logger.warn('No active learning goal found, using default', { 
+                error: goalError.message,
+                userId: user_id 
+            });
+        }
+
+        const resume_text = resumeData.raw_text;
+        const current_goal = goalData?.refined_goal || 'General software development position';
 
         if (!resume_text || typeof resume_text !== 'string') {
-            throw new Error('Invalid resume_text input. Please provide a valid string.');
-        }
-
-        if (!current_goal || typeof current_goal !== 'string') {
-            throw new Error('Invalid current_goal input. Please provide a valid string.');
+            throw new Error('Invalid resume text. Please upload a resume first.');
         }
 
         logger.info('Resume and goal loaded', { 
             userId: user_id,
-            resumeLength: typeof resume_text === 'string' ? resume_text.length : JSON.stringify(resume_text).length,
-            goalLength: current_goal.length
+            resumeLength: resume_text.length,
+            goalLength: current_goal.length,
+            hasGoal: !!goalData
         });
 
         let response = null;

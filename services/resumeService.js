@@ -127,12 +127,18 @@ CRITICAL REQUIREMENTS:
     // Validate the response against schema
     const validated = validateAIResponse(extracted, resumeAnalysisSchema, 'resume analysis');
     
+    // Add the raw text to validated object for storage
+    validated.raw_text = resumeText;
+    validated.file_path = filePath;
+    validated.file_name = filePath.split('/').pop();
+    
     const duration = Date.now() - startTime;
     logger.info('Resume analysis completed successfully', {
       duration: `${duration}ms`,
       userId,
       skillsCount: validated.technical_skills?.length || 0,
-      projectsCount: validated.projects?.length || 0
+      projectsCount: validated.projects?.length || 0,
+      rawTextLength: resumeText.length
     });
     
     // Store resume data in normalized database schema if userId is provided

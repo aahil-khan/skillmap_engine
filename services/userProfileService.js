@@ -107,59 +107,68 @@ export async function createUserProfile(profileData) {
     
     console.log(`Successfully ${isUpdate ? 'updated' : 'stored'} user profile embedding for: ${name}`);
 
+    // Store learning goal in the learning_goals table (not in resumes)
     if (user_id && goal) {
       try {
-        console.log("updating goal in database");
-        const { data, error } = await supabase
-          .from('resumes')
-          .update({ current_goal: goal })
-          .eq('userid', user_id);
+        console.log("Storing learning goal in database");
+        
+        // Check if goal already exists
+        const { data: existingGoal } = await supabase
+          .from('learning_goals')
+          .select('id')
+          .eq('userid', user_id)
+          .eq('refined_goal', goal)
+          .single();
 
-        if (error) {
-          console.error('Error storing goal in database:', error);
+        if (!existingGoal) {
+          const { data, error } = await supabase
+            .from('learning_goals')
+            .insert({
+              userid: user_id,
+              original_goal: goal,
+              refined_goal: goal,
+              status: 'active'
+            });
+
+          if (error) {
+            console.error('Error storing goal in database:', error);
+          } else {
+            console.log('Goal successfully stored in database for user:', user_id);
+          }
         } else {
-          console.log('Goal successfully stored/updated in database for user:', user_id);
+          console.log('Goal already exists for user:', user_id);
         }
       } catch (dbError) {
         console.error('Database operation failed:', dbError);
       }
     } else {
-      console.log("didnt find user ID or goal");
+      console.log("No user ID or goal provided");
     }
 
-    //calculate and store ats score
-    const ats_score_raw = await atsScore(user_id);
-    console.log("Ats score raw", ats_score_raw);
-    
-    // Extract the overall_score from the ATS result object
-    const ats_score_value = ats_score_raw?.overall_score 
-      ? Number(ats_score_raw.overall_score)
-      : (typeof ats_score_raw === 'string'
-          ? Number(ats_score_raw.replace('%', '').trim())
-          : Number(ats_score_raw));
-
-
-    if (typeof ats_score_value === 'number' && !isNaN(ats_score_value)) {
-      console.log('ATS Score calculated successfully:', ats_score_value);
-
-      //store/update ats score
+    // Calculate and store ATS score (resume should exist by now if user uploaded one)
+    if (user_id) {
       try {
-        console.log("updating ats score in database");
-        const { data, error } = await supabase
-          .from('resumes')
-          .update({ ats_score: ats_score_value })
-          .eq('userid', user_id);
+        console.log("Calculating ATS score");
+        const ats_score_raw = await atsScore(user_id);
+        console.log("ATS score raw", ats_score_raw);
+        
+        // Extract the overall_score from the ATS result object
+        const ats_score_value = ats_score_raw?.overall_score 
+          ? Number(ats_score_raw.overall_score)
+          : (typeof ats_score_raw === 'string'
+              ? Number(ats_score_raw.replace('%', '').trim())
+              : Number(ats_score_raw));
 
-        if (error) {
-          console.error('Error storing ATS score in database:', error);
+        if (typeof ats_score_value === 'number' && !isNaN(ats_score_value)) {
+          console.log('ATS Score calculated successfully:', ats_score_value);
+          // Note: atsService.js already stores the score in both resumes and ats_history tables
         } else {
-          console.log('ATS score successfully stored/updated in database for user:', user_id);
+          console.log('Failed to parse ATS Score value');
         }
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
+      } catch (atsError) {
+        console.warn('ATS score calculation failed (user may not have uploaded resume yet):', atsError.message);
+        // Don't throw - allow profile creation to continue without ATS score
       }
-    } else {
-      console.log('Failed to calculate ATS Score');
     }
 
 
