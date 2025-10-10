@@ -135,29 +135,191 @@ CRITICAL REQUIREMENTS:
       projectsCount: validated.projects?.length || 0
     });
     
-    // Store resume data in Supabase if userId is provided
+    // Store resume data in normalized database schema if userId is provided
     if (userId && validated) {
       try {
-        logger.info('Storing resume in database', { userId });
+        logger.info('Storing resume in normalized database', { userId });
         
-        const { data, error } = await supabase
+        // 1. Store resume file metadata and parsed data
+        const { data: resumeData, error: resumeError } = await supabase
           .from('resumes')
           .upsert(
             {
               userid: userId,
-              resume_text: validated,
+              file_name: validated.file_name || 'resume.pdf',
+              file_path: validated.file_path || null,
+              file_size: validated.file_size || null,
+              mime_type: validated.mime_type || 'application/pdf',
+              raw_text: validated.raw_text || null,
+              parsed_data: validated,
+              ats_score: null // Will be updated later by ATS service
             },
-            { onConflict: ['userid'] }
+            { onConflict: 'userid', returning: 'representation' }
           );
         
-        if (error) {
-          logger.error('Error storing resume in database', { 
-            error: error.message,
-            userId 
-          });
-        } else {
-          logger.info('Resume successfully stored in database', { userId });
+        if (resumeError) {
+          logger.error('Error storing resume', { error: resumeError.message, userId });
+          throw resumeError;
         }
+        
+        logger.info('Resume stored successfully', { userId });
+        
+        // 2. Store user profile
+        if (validated.name) {
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .upsert(
+              {
+                userid: userId,
+                name: validated.name,
+                email: validated.email || null,
+                inferred_areas_of_strength: validated.inferred_areas_of_strength || []
+              },
+              { onConflict: 'userid' }
+            );
+          
+          if (profileError) {
+            logger.error('Error storing profile', { error: profileError.message, userId });
+          } else {
+            logger.info('Profile stored successfully', { userId });
+          }
+        }
+        
+        // 3. Store skills
+        if (validated.technical_skills && Array.isArray(validated.technical_skills)) {
+          // Delete existing skills first
+          await supabase.from('skills').delete().eq('userid', userId);
+          
+          const skillsToInsert = [];
+          validated.technical_skills.forEach(category => {
+            const categoryName = category.category || 'Other';
+            const skills = Array.isArray(category.skills) ? category.skills : [];
+            
+            skills.forEach(skill => {
+              let skillName, skillLevel;
+              
+              if (typeof skill === 'string') {
+                skillName = skill;
+                skillLevel = 'intermediate';
+              } else if (skill && typeof skill === 'object') {
+                skillName = skill.name || skill.skill_name;
+                skillLevel = (skill.level || skill.skill_level || 'intermediate').toLowerCase();
+              }
+              
+              if (skillName) {
+                skillsToInsert.push({
+                  userid: userId,
+                  skill_name: skillName,
+                  skill_level: skillLevel,
+                  skill_category: categoryName
+                });
+              }
+            });
+          });
+          
+          if (skillsToInsert.length > 0) {
+            const { error: skillsError } = await supabase
+              .from('skills')
+              .insert(skillsToInsert);
+            
+            if (skillsError) {
+              logger.error('Error storing skills', { error: skillsError.message, userId });
+            } else {
+              logger.info('Skills stored successfully', { userId, count: skillsToInsert.length });
+            }
+          }
+        }
+        
+        // 4. Store work experience
+        if (validated.experience && Array.isArray(validated.experience)) {
+          await supabase.from('work_experience').delete().eq('userid', userId);
+          
+          const experienceToInsert = validated.experience.map((exp, index) => ({
+            userid: userId,
+            job_title: exp.title || exp.role || 'Position',
+            company: exp.company || 'Company',
+            location: exp.location || null,
+            duration: exp.duration || null,
+            description: exp.description || null,
+            responsibilities: Array.isArray(exp.responsibilities) ? exp.responsibilities : [],
+            technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
+            achievements: Array.isArray(exp.achievements) ? exp.achievements : [],
+            display_order: index
+          }));
+          
+          if (experienceToInsert.length > 0) {
+            const { error: expError } = await supabase
+              .from('work_experience')
+              .insert(experienceToInsert);
+            
+            if (expError) {
+              logger.error('Error storing experience', { error: expError.message, userId });
+            } else {
+              logger.info('Experience stored successfully', { userId, count: experienceToInsert.length });
+            }
+          }
+        }
+        
+        // 5. Store projects
+        if (validated.projects && Array.isArray(validated.projects)) {
+          await supabase.from('projects').delete().eq('userid', userId);
+          
+          const projectsToInsert = validated.projects.map((proj, index) => ({
+            userid: userId,
+            project_name: proj.name || proj.title || 'Project',
+            description: proj.description || null,
+            role: proj.role || null,
+            technologies: Array.isArray(proj.technologies) ? proj.technologies : [],
+            github_url: proj.github_url || proj.link || null,
+            live_url: proj.live_url || null,
+            highlights: Array.isArray(proj.highlights) ? proj.highlights : [],
+            display_order: index
+          }));
+          
+          if (projectsToInsert.length > 0) {
+            const { error: projError } = await supabase
+              .from('projects')
+              .insert(projectsToInsert);
+            
+            if (projError) {
+              logger.error('Error storing projects', { error: projError.message, userId });
+            } else {
+              logger.info('Projects stored successfully', { userId, count: projectsToInsert.length });
+            }
+          }
+        }
+        
+        // 6. Store education
+        if (validated.education && Array.isArray(validated.education)) {
+          await supabase.from('education').delete().eq('userid', userId);
+          
+          const educationToInsert = validated.education.map((edu, index) => ({
+            userid: userId,
+            degree: edu.degree || 'Degree',
+            institution: edu.institution || edu.school || 'Institution',
+            location: edu.location || null,
+            field_of_study: edu.field_of_study || edu.field || null,
+            graduation_year: edu.year || edu.graduation_year || null,
+            gpa: edu.gpa || null,
+            honors: Array.isArray(edu.honors) ? edu.honors : [],
+            display_order: index
+          }));
+          
+          if (educationToInsert.length > 0) {
+            const { error: eduError } = await supabase
+              .from('education')
+              .insert(educationToInsert);
+            
+            if (eduError) {
+              logger.error('Error storing education', { error: eduError.message, userId });
+            } else {
+              logger.info('Education stored successfully', { userId, count: educationToInsert.length });
+            }
+          }
+        }
+        
+        logger.info('All resume data stored in normalized schema', { userId });
+        
       } catch (dbError) {
         logger.error('Database operation failed', { 
           error: dbError.message,

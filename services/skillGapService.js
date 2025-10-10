@@ -1,5 +1,6 @@
 import { openai } from '../config/openai.js';
 import { qdrant } from '../config/qdrant.js';
+import { supabase } from '../config/supabase.js';
 import { skill_taxonomy } from '../taxonomy/skill_taxonomy.js';
 import { getModelConfig } from '../config/ai-models.js';
 import { validateAIResponse, extractJSON, skillGapAnalysisSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
@@ -63,6 +64,55 @@ export async function analyzeSkillGaps(user_id) {
       totalGaps: skillGaps.reduce((sum, cat) => sum + cat.skills.gaps.length, 0),
       totalPresent: skillGaps.reduce((sum, cat) => sum + cat.skills.present.length, 0)
     });
+    
+    // Store skill gap analysis in database for caching and history
+    try {
+      // Get the learning goal ID if it exists
+      const { data: goalData } = await supabase
+        .from('learning_goals')
+        .select('id')
+        .eq('userid', user_id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Extract data for storage
+      const currentSkills = Object.keys(userSkillListWithLevels);
+      const requiredSkills = skillGaps.flatMap(cat => cat.skills.all || []);
+      const missingSkills = skillGaps.flatMap(cat => cat.skills.gaps || []);
+      const presentSkills = skillGaps.flatMap(cat => cat.skills.present || []);
+
+      const { error: analysisError } = await supabase
+        .from('skill_gap_analysis')
+        .insert({
+          userid: user_id,
+          goal_id: goalData?.id || null,
+          goal_category: categories[0]?.category || 'General',
+          current_skills: currentSkills,
+          required_skills: requiredSkills,
+          missing_skills: missingSkills,
+          skills_to_improve: [],
+          strengths: presentSkills,
+          learning_path: { categories: skillGaps },
+          recommended_resources: {},
+          next_steps: []
+        });
+
+      if (analysisError) {
+        logger.error('Error storing skill gap analysis', { 
+          error: analysisError.message,
+          userId: user_id 
+        });
+      } else {
+        logger.info('Skill gap analysis stored successfully', { userId: user_id });
+      }
+    } catch (dbError) {
+      logger.error('Database operation failed during analysis storage', { 
+        error: dbError.message,
+        userId: user_id 
+      });
+    }
     
     return {
       success: true,

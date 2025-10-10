@@ -22,6 +22,7 @@ import resumeRoutes from './routes/resume.js';
 import leetcodeRoutes from './routes/leetcode.js';
 import profileRoutes from './routes/profile.js';
 import skillsRoutes from './routes/skills.js';
+import userDataRoutes from './routes/userData.js';
 
 // Import config
 import { supabase } from './config/supabase.js';
@@ -90,6 +91,9 @@ app.use('/', profileRoutes);
 
 // Skills routes (authentication applied in route file)
 app.use('/', skillsRoutes);
+
+// User data GET routes (authentication applied in route file)
+app.use('/user-data', userDataRoutes);
 
 // LeetCode routes (mixed auth - some public, some authenticated)
 app.use('/', leetcodeRoutes);

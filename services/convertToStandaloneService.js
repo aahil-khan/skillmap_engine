@@ -1,4 +1,5 @@
 import { openai } from "../config/openai.js";
+import { supabase } from '../config/supabase.js';
 import { getModelConfig } from '../config/ai-models.js';
 import { validateAIResponse, extractJSON, standaloneGoalSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 
@@ -11,13 +12,14 @@ const logger = {
 };
 
 
-export async function convertToStandalone(goal){
+export async function convertToStandalone(goal, userId = null){
     const startTime = Date.now();
     const modelConfig = getModelConfig('conversational');
     
     try {
         logger.info('Converting goal to standalone format', { 
-            goalLength: goal?.length || 0 
+            goalLength: goal?.length || 0,
+            userId: userId || 'anonymous'
         });
         
         // Validate the input
@@ -100,8 +102,38 @@ Be concise and clear. Do not include any markdown, explanations, or text outside
         const duration = Date.now() - startTime;
         logger.info('Goal converted to standalone successfully', {
             duration: `${duration}ms`,
-            standaloneGoal: validated.standalone_goal
+            standaloneGoal: validated.standalone_goal,
+            userId: userId || 'anonymous'
         });
+
+        // Store in learning_goals table if userId is provided
+        if (userId) {
+            try {
+                const { error: goalError } = await supabase
+                    .from('learning_goals')
+                    .insert({
+                        userid: userId,
+                        original_goal: goal,
+                        refined_goal: validated.standalone_goal,
+                        goal_category: validated.goal_category || null,
+                        status: 'active'
+                    });
+
+                if (goalError) {
+                    logger.error('Error storing learning goal', { 
+                        error: goalError.message,
+                        userId 
+                    });
+                } else {
+                    logger.info('Learning goal stored successfully', { userId });
+                }
+            } catch (dbError) {
+                logger.error('Database operation failed during goal storage', { 
+                    error: dbError.message,
+                    userId 
+                });
+            }
+        }
 
         // Return just the standalone goal string for backward compatibility
         return validated.standalone_goal;

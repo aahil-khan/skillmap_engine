@@ -160,6 +160,59 @@ The overall_score MUST be a number between 0 and 100. Do not include any markdow
             score: validated.overall_score
         });
 
+        // Store ATS score in database
+        try {
+            // 1. Update the resume with the ATS score
+            const { error: resumeUpdateError } = await supabase
+                .from('resumes')
+                .update({ ats_score: validated.overall_score })
+                .eq('userid', user_id);
+
+            if (resumeUpdateError) {
+                logger.error('Error updating resume ATS score', { 
+                    error: resumeUpdateError.message,
+                    userId: user_id 
+                });
+            }
+
+            // 2. Store in ATS history for tracking
+            const { data: resumeData } = await supabase
+                .from('resumes')
+                .select('id')
+                .eq('userid', user_id)
+                .single();
+
+            const { error: historyError } = await supabase
+                .from('ats_history')
+                .insert({
+                    userid: user_id,
+                    resume_id: resumeData?.id || null,
+                    overall_score: validated.overall_score,
+                    skills_match: validated.breakdown?.skills_match || null,
+                    experience_match: validated.breakdown?.experience_match || null,
+                    education_match: validated.breakdown?.education_match || null,
+                    strengths: validated.strengths || [],
+                    weaknesses: [],
+                    improvements: validated.improvements || [],
+                    recommendations: []
+                });
+
+            if (historyError) {
+                logger.error('Error storing ATS history', { 
+                    error: historyError.message,
+                    userId: user_id 
+                });
+            } else {
+                logger.info('ATS score stored in history', { userId: user_id });
+            }
+
+        } catch (dbError) {
+            logger.error('Database operation failed during ATS storage', { 
+                error: dbError.message,
+                userId: user_id 
+            });
+        }
+
         return validated;
 
     } catch (error) {

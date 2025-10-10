@@ -72,10 +72,11 @@ router.post('/search-skills', authenticate, validateBody(skillSearchSchema), asy
  */
 router.post('/convert-to-standalone', authenticate, validateBody(convertToStandaloneSchema), asyncHandler(async (req, res) => {
   const { goal } = req.validatedBody;
+  const user_id = req.user.id;
 
-  logger.info('Converting goal to standalone', { requestId: req.id });
+  logger.info('Converting goal to standalone', { requestId: req.id, userId: user_id });
 
-  const goalResponse = await convertToStandalone(goal);
+  const goalResponse = await convertToStandalone(goal, user_id);
 
   res.json({
     success: true,
