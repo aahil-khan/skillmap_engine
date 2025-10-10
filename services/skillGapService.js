@@ -28,17 +28,33 @@ export async function analyzeSkillGaps(user_id) {
   try {
     logger.info('Starting skill gap analysis', { userId: user_id });
     
-    // Fetch user profile
-    const userProfile = await fetchUserProfileById(user_id);
+    // Fetch user profile from Supabase normalized tables
+    const [profileResult, skillsResult, goalsResult] = await Promise.all([
+      supabase.from('user_profiles').select('*').eq('userid', user_id).single(),
+      supabase.from('skills').select('*').eq('userid', user_id),
+      supabase.from('learning_goals').select('*').eq('userid', user_id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single()
+    ]);
 
-    if (!userProfile) {
-      logger.warn('User profile not found', { userId: user_id });
+    if (profileResult.error && profileResult.error.code !== 'PGRST116') {
+      logger.warn('User profile not found', { userId: user_id, error: profileResult.error.message });
       return null;
     }
 
-    const userSkillListWithLevels = userProfile.payload.skills_list_with_level || {};
-    const userGoal = userProfile.payload.learning_goal || '';
-    const userName = userProfile.payload.user_name || 'User';
+    if (!profileResult.data) {
+      logger.warn('No user profile data', { userId: user_id });
+      return null;
+    }
+
+    // Build skills object with levels from database
+    const userSkillListWithLevels = {};
+    if (skillsResult.data) {
+      skillsResult.data.forEach(skill => {
+        userSkillListWithLevels[skill.skill_name] = skill.skill_level;
+      });
+    }
+
+    const userGoal = goalsResult.data?.refined_goal || goalsResult.data?.original_goal || '';
+    const userName = profileResult.data.name || 'User';
     
     logger.info('User profile loaded', { 
       userId: user_id,

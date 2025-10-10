@@ -58,10 +58,10 @@ async function getUserProfile(userid) {
     const groupedSkills = {};
     if (skillsResult.data) {
       skillsResult.data.forEach(skill => {
-        if (!groupedSkills[skill.category]) {
-          groupedSkills[skill.category] = [];
+        if (!groupedSkills[skill.skill_category]) {
+          groupedSkills[skill.skill_category] = [];
         }
-        groupedSkills[skill.category].push({
+        groupedSkills[skill.skill_category].push({
           name: skill.skill_name,
           level: skill.skill_level
         });
@@ -74,10 +74,25 @@ async function getUserProfile(userid) {
       skills
     }));
 
+    // Transform work experience to match frontend expectations
+    const transformedWorkExperience = experienceResult.data?.map(exp => ({
+      title: exp.job_title,                    // Transform job_title -> title
+      company: exp.company,
+      duration: exp.duration,
+      description: exp.description,
+      skills: exp.technologies || [],          // Transform technologies -> skills
+      location: exp.location,
+      start_date: exp.start_date,
+      end_date: exp.end_date,
+      is_current: exp.is_current,
+      responsibilities: exp.responsibilities || [],
+      achievements: exp.achievements || []
+    })) || [];
+
     return {
       profile: profileResult.data || null,
       technical_skills,
-      work_experience: experienceResult.data || [],
+      work_experience: transformedWorkExperience,
       projects: projectsResult.data || [],
       education: educationResult.data || [],
       learning_goals: goalsResult.data || [],
@@ -102,7 +117,7 @@ async function getUserSkills(userid) {
       .from('skills')
       .select('*')
       .eq('userid', userid)
-      .order('category', { ascending: true });
+      .order('skill_category', { ascending: true });
 
     if (error) {
       throw new AppError(`Error fetching skills: ${error.message}`, 500);
@@ -111,10 +126,10 @@ async function getUserSkills(userid) {
     // Group by category
     const groupedSkills = {};
     data.forEach(skill => {
-      if (!groupedSkills[skill.category]) {
-        groupedSkills[skill.category] = [];
+      if (!groupedSkills[skill.skill_category]) {
+        groupedSkills[skill.skill_category] = [];
       }
-      groupedSkills[skill.category].push({
+      groupedSkills[skill.skill_category].push({
         id: skill.id,
         name: skill.skill_name,
         level: skill.skill_level,

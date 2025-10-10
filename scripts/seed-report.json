@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-10-10T13:37:19.402Z",
+  "collection": "skill_embeddings",
+  "model": "text-embedding-3-small",
+  "metrics": {
+    "totalSkills": 27,
+    "processed": 27,
+    "skipped": 0,
+    "failed": 0,
+    "embeddingTime": 1.18,
+    "upsertTime": 1.8
+  },
+  "runtimeSeconds": 5.45
+}
