@@ -1,13 +1,11 @@
 import fs from 'fs';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 /**
- * Parse PDF file and extract text content using multiple fallback methods
+ * Parse PDF file and extract text content using PDF.js (Mozilla's library)
+ * This is the most reliable PDF parsing library, used by Firefox
  * @param {string} filePath - Path to the PDF file
- * @returns {string} Extracted text content
+ * @returns {Promise<string>} Extracted text content
  */
 export async function parseResume(filePath) {
   try {
@@ -16,70 +14,61 @@ export async function parseResume(filePath) {
       throw new Error(`File not found: ${filePath}`);
     }
     
-    console.log(`Parsing PDF: ${filePath}`);
+    console.log(`Parsing PDF with PDF.js: ${filePath}`);
     
-    // Method 1: Try using pdf-parse (most reliable for text extraction)
-    try {
-      // Dynamic import for pdf-parse (ESM module)
-      const { default: pdfParse } = await import('pdf-parse');
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
+    // Read the PDF file
+    const dataBuffer = fs.readFileSync(filePath);
+    const uint8Array = new Uint8Array(dataBuffer);
+    
+    // Load the PDF document
+    const loadingTask = pdfjs.getDocument({
+      data: uint8Array,
+      useSystemFonts: true,
+      standardFontDataUrl: 'node_modules/pdfjs-dist/standard_fonts/',
+    });
+    
+    const pdfDocument = await loadingTask.promise;
+    const numPages = pdfDocument.numPages;
+    console.log(`PDF has ${numPages} pages`);
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfDocument.getPage(pageNum);
+      const textContent = await page.getTextContent();
       
-      if (pdfData.text && pdfData.text.trim().length > 50) {
-        console.log(`Successfully extracted ${pdfData.text.length} characters using pdf-parse`);
-        console.log(`PDF has ${pdfData.numpages} pages`);
-        return pdfData.text.trim();
-      } else {
-        console.warn(`pdf-parse extracted only ${pdfData.text?.length || 0} characters - too short`);
-      }
-    } catch (pdfParseError) {
-      console.warn('pdf-parse method failed:', pdfParseError.message);
+      // Combine text items with proper spacing
+      const pageText = textContent.items
+        .map(item => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n\n';
+      
+      console.log(`Extracted ${pageText.length} characters from page ${pageNum}`);
     }
     
-    // Method 2: Try using pdftotext command line tool (if available in container)
-    try {
-      const { stdout } = await execAsync(`pdftotext "${filePath}" -`);
-      if (stdout && stdout.trim()) {
-        console.log(`Successfully extracted ${stdout.length} characters using pdftotext`);
-        return stdout.trim();
-      }
-    } catch (pdfToTextError) {
-      console.warn('pdftotext method failed:', pdfToTextError.message);
+    // Clean up the text
+    const cleanedText = fullText
+      .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+      .replace(/\n\s*\n\s*\n/g, '\n\n')  // Replace multiple newlines with double newline
+      .trim();
+    
+    if (cleanedText.length < 50) {
+      throw new Error(`Extracted text too short (${cleanedText.length} characters). PDF may be image-based or corrupted.`);
     }
     
-    // Method 3: Try using strings command as last resort
-    try {
-      const { stdout } = await execAsync(`strings "${filePath}"`);
-      if (stdout && stdout.trim()) {
-        // Filter out non-text content and clean up
-        const cleanText = stdout
-          .split('\n')
-          .filter(line => line.length > 3 && /[a-zA-Z]/.test(line))
-          .join('\n');
-        
-        if (cleanText.trim()) {
-          console.log(`Successfully extracted ${cleanText.length} characters using strings command`);
-          return cleanText.trim();
-        }
-      }
-    } catch (stringsError) {
-      console.warn('strings method failed:', stringsError.message);
-    }
-    
-    // Method 4: Return a manual processing message if all else fails
-    console.warn('All PDF parsing methods failed, requesting manual processing');
-    return `PDF parsing failed for file: ${filePath}. Please manually extract the text content from this resume:
-
-1. Education details
-2. Work experience 
-3. Skills and technologies
-4. Projects
-5. Contact information
-
-Please provide this information in a structured format for processing.`;
+    console.log(`Successfully extracted ${cleanedText.length} characters from ${numPages} pages`);
+    return cleanedText;
     
   } catch (error) {
-    console.error('Error parsing PDF:', error);
+    console.error('Error parsing PDF with PDF.js:', error);
+    
+    // If PDF.js fails, provide helpful error message
+    if (error.message.includes('image-based')) {
+      throw new Error('This PDF appears to be image-based (scanned document). Please use a text-based PDF or OCR the document first.');
+    }
+    
     throw new Error(`Failed to parse PDF: ${error.message}`);
   }
 }
