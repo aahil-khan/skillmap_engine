@@ -1,7 +1,7 @@
 import { openai } from "../config/openai.js";
 import { supabase } from '../config/supabase.js';
 import { getModelConfig } from '../config/ai-models.js';
-import { validateAIResponse, extractJSON, atsScoreSchema } from '../schemas/ai-response-schemas.js';
+import { validateAIResponse, extractJSON, atsScoreSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 
 // Logger helper
 const logger = {
@@ -131,7 +131,8 @@ The overall_score MUST be a number between 0 and 100. Do not include any markdow
             throw lastError || new Error('Failed to get response from OpenAI');
         }
 
-        const jsonText = response.choices[0].message.content;
+        // Safely extract content from response
+        const jsonText = extractOpenAIContent(response);
         logger.debug('OpenAI response received', { responseLength: jsonText.length });
         
         // Extract and validate JSON

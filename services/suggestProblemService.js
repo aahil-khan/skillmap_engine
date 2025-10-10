@@ -1,7 +1,7 @@
 import { openai } from "../config/openai.js";
 import { getLastnSubmissions } from "./leetcodeService.js";
 import { getModelConfig } from '../config/ai-models.js';
-import { validateAIResponse, extractJSON, leetcodeSuggestionSchema } from '../schemas/ai-response-schemas.js';
+import { validateAIResponse, extractJSON, leetcodeSuggestionSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 
 // Logger helper
 const logger = {
@@ -114,7 +114,8 @@ Recommend 4 problems that build on their current skills. Use real LeetCode URLs.
             return getSmartRecommendations(solvedProblems);
         }
 
-        const jsonText = response.choices[0].message.content;
+        // Safely extract content from response
+        const jsonText = extractOpenAIContent(response);
         logger.debug('OpenAI response received', { responseLength: jsonText.length });
         
         // Extract and validate JSON

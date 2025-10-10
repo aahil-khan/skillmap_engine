@@ -18,30 +18,22 @@ export async function parseResume(filePath) {
     
     console.log(`Parsing PDF: ${filePath}`);
     
-    // Method 1: Try using pdf-lib (most reliable)
+    // Method 1: Try using pdf-parse (most reliable for text extraction)
     try {
-      const { PDFDocument } = await import('pdf-lib');
-      
+      // Dynamic import for pdf-parse (ESM module)
+      const { default: pdfParse } = await import('pdf-parse');
       const dataBuffer = fs.readFileSync(filePath);
-      const pdfDoc = await PDFDocument.load(dataBuffer);
-      const pages = pdfDoc.getPages();
+      const pdfData = await pdfParse(dataBuffer);
       
-      let fullText = '';
-      
-      // Extract text using pdf-lib's basic text extraction
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        // This is a basic approach - pdf-lib doesn't have built-in text extraction
-        // but we can try to get some basic info
-        fullText += `Page ${i + 1} content\n`;
+      if (pdfData.text && pdfData.text.trim().length > 50) {
+        console.log(`Successfully extracted ${pdfData.text.length} characters using pdf-parse`);
+        console.log(`PDF has ${pdfData.numpages} pages`);
+        return pdfData.text.trim();
+      } else {
+        console.warn(`pdf-parse extracted only ${pdfData.text?.length || 0} characters - too short`);
       }
-      
-      if (fullText.trim()) {
-        console.log(`Successfully extracted text using pdf-lib`);
-        return fullText.trim();
-      }
-    } catch (pdfLibError) {
-      console.warn('pdf-lib method failed:', pdfLibError.message);
+    } catch (pdfParseError) {
+      console.warn('pdf-parse method failed:', pdfParseError.message);
     }
     
     // Method 2: Try using pdftotext command line tool (if available in container)

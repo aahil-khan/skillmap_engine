@@ -2,7 +2,7 @@ import { openai } from '../config/openai.js';
 import { qdrant } from '../config/qdrant.js';
 import { skill_taxonomy } from '../taxonomy/skill_taxonomy.js';
 import { getModelConfig } from '../config/ai-models.js';
-import { validateAIResponse, extractJSON, skillGapAnalysisSchema } from '../schemas/ai-response-schemas.js';
+import { validateAIResponse, extractJSON, skillGapAnalysisSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 import fs from 'fs';
 
 // Logger helper
@@ -485,7 +485,8 @@ Be encouraging, specific, and actionable. Do not include any markdown, explanati
       throw lastError || new Error('Failed to get response from OpenAI');
     }
 
-    const jsonText = response.choices[0].message.content;
+    // Safely extract content from response
+    const jsonText = extractOpenAIContent(response);
     logger.debug('OpenAI response received', { responseLength: jsonText.length });
     
     // Extract and validate JSON

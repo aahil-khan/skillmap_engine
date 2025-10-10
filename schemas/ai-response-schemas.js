@@ -6,6 +6,41 @@
  */
 
 import { z } from 'zod';
+import logger from '../utils/logger.js';
+
+/**
+ * Safely extract content from OpenAI response
+ * @param {Object} response - OpenAI API response
+ * @returns {string} Message content
+ * @throws {Error} If response structure is invalid
+ */
+export function extractOpenAIContent(response) {
+  if (!response) {
+    throw new Error('OpenAI response is null or undefined');
+  }
+
+  // Validate response structure
+  if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
+    logger.error('Invalid OpenAI response structure', { 
+      hasChoices: !!response.choices,
+      choicesType: typeof response.choices,
+      choicesLength: response.choices?.length,
+      responseKeys: Object.keys(response || {})
+    });
+    throw new Error('Invalid response from OpenAI: missing or empty choices array');
+  }
+
+  if (!response.choices[0].message || !response.choices[0].message.content) {
+    logger.error('Invalid OpenAI message structure', {
+      hasMessage: !!response.choices[0].message,
+      hasContent: !!response.choices[0].message?.content,
+      messageKeys: Object.keys(response.choices[0].message || {})
+    });
+    throw new Error('Invalid response from OpenAI: missing message content');
+  }
+
+  return response.choices[0].message.content;
+}
 
 /**
  * Resume Analysis Schema
@@ -154,7 +189,14 @@ export function validateAIResponse(response, schema, context = 'AI response') {
     
     if (!result.success) {
       console.error(`${context} validation failed:`, result.error.format());
-      throw new Error(`Invalid ${context} structure: ${result.error.errors[0].message}`);
+      
+      // Get first error message safely
+      const firstError = result.error.errors?.[0];
+      const errorMessage = firstError 
+        ? `${firstError.path.join('.')}: ${firstError.message}`
+        : 'Unknown validation error';
+      
+      throw new Error(`Invalid ${context} structure: ${errorMessage}`);
     }
     
     return result.data;

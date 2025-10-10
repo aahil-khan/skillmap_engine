@@ -1,6 +1,6 @@
 import { openai } from "../config/openai.js";
 import { getModelConfig } from '../config/ai-models.js';
-import { validateAIResponse, extractJSON, standaloneGoalSchema } from '../schemas/ai-response-schemas.js';
+import { validateAIResponse, extractJSON, standaloneGoalSchema, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 
 // Logger helper
 const logger = {
@@ -89,7 +89,8 @@ Be concise and clear. Do not include any markdown, explanations, or text outside
             throw lastError || new Error('Failed to get response from OpenAI');
         }
 
-        const jsonText = response.choices[0].message.content;
+        // Safely extract content from response
+        const jsonText = extractOpenAIContent(response);
         logger.debug('OpenAI response received', { responseLength: jsonText.length });
         
         // Extract and validate JSON

@@ -3,7 +3,7 @@ import { parseResume } from '../utils/pdfParser.js';
 import { skill_taxonomy } from '../taxonomy/skill_taxonomy.js';
 import { supabase } from '../config/supabase.js';
 import { getModelConfig } from '../config/ai-models.js';
-import { validateAIResponse, resumeAnalysisSchema, extractJSON } from '../schemas/ai-response-schemas.js';
+import { validateAIResponse, resumeAnalysisSchema, extractJSON, extractOpenAIContent } from '../schemas/ai-response-schemas.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -57,11 +57,11 @@ export async function processResume(filePath, userId = null) {
 Resume text:
 ${resumeText}
 
-Required JSON structure:
+Required JSON structure (ALL fields are required):
 {
-  "name": "string",
+  "name": "string (extract from resume or use 'Unknown')",
   "technical_skills": [{"category": "string", "skills": ["string"], "level": "Beginner|Intermediate|Advanced"}],
-  "inferred_areas_of_strength": ["string"],
+  "inferred_areas_of_strength": ["string (at least one strength based on experience/skills)"],
   "experience": {"total_years": number, "recent_roles": [{"title": "string", "company": "string", "duration": "string"}]},
   "projects": [{"name": "string", "description": "string", "technologies": ["string"]}],
   "education": [{"degree": "string", "institution": "string", "year": "string"}]
@@ -69,11 +69,13 @@ Required JSON structure:
 
 Skill taxonomy: ${JSON.stringify(skill_taxonomy)}
 
-IMPORTANT:
-- Return ONLY valid JSON
-- Do not hallucinate
-- Map skills to taxonomy categories
-- Use empty arrays if information is missing`
+CRITICAL REQUIREMENTS:
+- Return ONLY valid JSON (no markdown, no explanations)
+- technical_skills array MUST have at least ONE category with skills
+- If no technical skills found in resume, infer from context (e.g., if mentions "developer" → add Programming)
+- Use empty arrays [] for missing projects/education, but NEVER for technical_skills
+- Do not hallucinate - only extract actual information
+- Map skills to taxonomy categories when possible`
             }
           ],
         });
@@ -104,11 +106,23 @@ IMPORTANT:
       throw lastError || new Error('Failed to get response from OpenAI');
     }
 
-    const jsonText = response.choices[0].message.content;
+    // Safely extract content from response
+    const jsonText = extractOpenAIContent(response);
     logger.debug('OpenAI response received', { responseLength: jsonText.length });
+    
+    // Log first 500 chars of response for debugging
+    logger.debug('OpenAI response preview', { 
+      preview: jsonText.substring(0, 500),
+      fullLength: jsonText.length 
+    });
     
     // Extract and parse JSON (handles markdown code blocks)
     const extracted = extractJSON(jsonText);
+    logger.debug('JSON extracted', { 
+      hasSkills: !!extracted.technical_skills,
+      hasExperience: !!extracted.work_experience,
+      hasProjects: !!extracted.projects 
+    });
     
     // Validate the response against schema
     const validated = validateAIResponse(extracted, resumeAnalysisSchema, 'resume analysis');
