@@ -48,34 +48,62 @@ export async function processResume(filePath, userId = null) {
           messages: [
             {
               role: 'system',
-              content: 'You are an AI assistant that converts resume text into structured JSON profiles. You MUST respond with valid JSON only, no markdown, no explanations. Be accurate and do not hallucinate information not present in the resume.'
+              content: `You are an information extraction engine that converts raw resume text into a structured JSON profile.
+
+STRICT OUTPUT
+- Return ONLY a valid JSON object. No markdown, code fences, comments, or explanations.
+- Use EXACT keys and datatypes requested. Do not add or remove keys.
+- Strings must be trimmed; use "Unknown" for missing required strings.
+- Arrays must be present even if empty where requested.
+- Do NOT hallucinate facts; extract only what is explicitly in the resume text. Limited category inference for "technical_skills" is allowed (see below), but do NOT invent specific tools not evidenced in the resume.
+
+EVIDENCE & NORMALIZATION RULES
+- Prefer explicit evidence: role titles, companies, dates, technologies, quantified impact.
+- Normalize common technology aliases (e.g., "Postgres" ≈ "PostgreSQL") but keep the surface form found in the resume when possible.
+- For "level", use one of: "Beginner", "Intermediate", "Advanced" (title case only).
+- "experience.total_years" should be a non-negative number. If years are unclear, estimate conservatively from explicit dates or roles; if impossible, use 0.
+- Durations in "recent_roles[].duration" should copy the resume’s phrasing if available (e.g., "Jan 2022–Mar 2024", "2 yrs 3 mos"). If missing, use "Unknown".
+- "projects[].technologies" should include only tools/frameworks/languages explicitly mentioned with each project or clearly tied to it in nearby text.
+
+TECHNICAL SKILLS MAPPING
+- Map skills into categories using the provided "skill taxonomy" when possible.
+- The "technical_skills" array MUST contain at least ONE object. If the resume has no explicit skills, you may add a single generic category based on role signals (e.g., if the resume clearly references software engineering roles, include {"category":"Programming","skills":[],"level":"Beginner"}). Do not invent specific tools.
+- Deduplicate skills within a category. Keep canonical, concise names (e.g., "React", not "React.js library").
+- Each technical_skills item must include: category (string), skills (array of strings), level ("Beginner" | "Intermediate" | "Advanced").
+
+QUALITY BAR
+- Favor precision over recall; do not over-attribute. If in doubt, leave fields as "Unknown" or arrays empty (except technical_skills must have ≥1 category as stated).`
             },
             {
               role: 'user',
-              content: `Analyze this resume and return ONLY valid JSON.
+              content: `Analyze the following resume text and return ONLY valid JSON in this EXACT structure:
 
 Resume text:
 ${resumeText}
 
 Required JSON structure (ALL fields are required):
 {
-  "name": "string (extract from resume or use 'Unknown')",
+  "name": "string (extract full name from resume header/profile; if not found use 'Unknown')",
   "technical_skills": [{"category": "string", "skills": ["string"], "level": "Beginner|Intermediate|Advanced"}],
-  "inferred_areas_of_strength": ["string (at least one strength based on experience/skills)"],
-  "experience": {"total_years": number, "recent_roles": [{"title": "string", "company": "string", "duration": "string"}]},
+  "inferred_areas_of_strength": ["string (at least one strength based on evidenced experience/skills)"],
+  "experience": {
+    "total_years": number,
+    "recent_roles": [{"title": "string", "company": "string", "duration": "string"}]
+  },
   "projects": [{"name": "string", "description": "string", "technologies": ["string"]}],
   "education": [{"degree": "string", "institution": "string", "year": "string"}]
 }
 
-Skill taxonomy: ${JSON.stringify(skill_taxonomy)}
+Skill taxonomy (for category mapping only; do not output it): ${JSON.stringify(skill_taxonomy)}
 
-CRITICAL REQUIREMENTS:
-- Return ONLY valid JSON (no markdown, no explanations)
-- technical_skills array MUST have at least ONE category with skills
-- If no technical skills found in resume, infer from context (e.g., if mentions "developer" → add Programming)
-- Use empty arrays [] for missing projects/education, but NEVER for technical_skills
-- Do not hallucinate - only extract actual information
-- Map skills to taxonomy categories when possible`
+CRITICAL REQUIREMENTS
+- Return ONLY JSON. No extra text.
+- "technical_skills" MUST contain at least one object.
+- If explicit technical skills are missing, include a single generic category inferred from role signals (e.g., "Programming") with an empty "skills" array and a conservative "level".
+- Do NOT fabricate specific tools, companies, dates, or metrics.
+- Use empty arrays [] for missing projects/education. Never use null.
+- Map skills to taxonomy categories when possible.
+- Keep field casing and enums EXACT as specified.`
             }
           ],
         });

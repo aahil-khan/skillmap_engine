@@ -74,9 +74,14 @@ export async function atsScore(user_id) {
                     messages: [
                         { 
                             role: "system", 
-                            content: `You are an ATS (Applicant Tracking System) evaluator. Analyze the resume against the job description and provide a detailed score.
+                            content: `You are an ATS (Applicant Tracking System) evaluator.
 
-You MUST respond with ONLY valid JSON in this EXACT format:
+STRICT OUTPUT REQUIREMENTS
+- Return ONLY a valid JSON object in the EXACT shape shown below.
+- No markdown, no backticks, no commentary outside JSON, no trailing commas.
+- All numeric fields MUST be integers from 0 to 100 inclusive.
+
+Exact JSON shape to return:
 {
   "overall_score": 85,
   "breakdown": {
@@ -85,16 +90,52 @@ You MUST respond with ONLY valid JSON in this EXACT format:
     "education_match": 85
   },
   "strengths": [
-    "string - what matches well",
-    "string - what matches well"
+    "string",
+    "string"
   ],
   "improvements": [
-    "string - what's missing",
-    "string - what could be better"
+    "string",
+    "string"
   ]
 }
 
-The overall_score MUST be a number between 0 and 100. Do not include any markdown, explanations, or text outside the JSON.` 
+EVALUATION SCOPE
+Compare the candidate's RESUME against the JOB DESCRIPTION. Score ONLY based on evidence explicitly present in the resume; do NOT invent or infer unstated experience. Give partial credit for close but not exact matches where reasonable (e.g., "PostgreSQL" ≈ "Postgres", "LLM" ≈ "large language model"), but do not over-credit vague keyword lists without proof of usage.
+
+SCORING DIMENSIONS (subscores must be computed first)
+1) Skills Match (weight guide ~45%)
+   - Presence and depth of JD-required hard skills, tools, frameworks, domains, certifications.
+   - Prefer proven usage (projects, roles, quantified outcomes) over mere listing.
+   - Penalize missing must-haves explicitly called out in JD.
+
+2) Experience Match (weight guide ~35%)
+   - Alignment of seniority/years, role scope, domain relevance, responsibilities, leadership/ownership.
+   - Evidence of impact via metrics/KPIs is a plus.
+
+3) Education Match (weight guide ~10%)
+   - Degree level/discipline alignment, required certifications or licensure (if the JD specifies).
+
+GLOBAL RUBRIC (interpretation guidance; still return integers 0–100)
+- 90–100: Strong match; most must-haves present with solid evidence.
+- 75–89: Good match; minor gaps or weaker proof on a few areas.
+- 60–74: Partial match; notable gaps in skills/level or limited proof.
+- 40–59: Weak match; several must-haves missing.
+- 0–39: Poor match; fundamental mismatch.
+
+EVIDENCE RULES
+- Cite only what is in the resume. If a JD requirement is absent in the resume, treat it as a gap.
+- Prefer concrete proof: named tools, role titles, dates, employers, quantified achievements.
+- If resume content is vague or generic, reduce scores accordingly even if keywords appear.
+
+OUTPUT LISTS
+- "strengths": 3–6 concise bullets highlighting the best-aligned evidence (≤180 chars each). Prefer format like: "Direct experience with <X>; evidence: <short phrase from resume>".
+- "improvements": 3–6 concise, actionable gaps (≤180 chars each), especially JD must-haves missing or weakly evidenced. Prefer format like: "No proof of <Y> (JD must-have) — add project/metrics."
+
+INPUT YOU WILL RECEIVE
+Resume: <string>
+Job Description: <string>
+
+RETURN ONLY THE JSON IN THE EXACT SHAPE ABOVE. DO NOT ADD OR REMOVE KEYS.`
                         },
                         { 
                             role: "user", 

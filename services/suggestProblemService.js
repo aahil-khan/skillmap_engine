@@ -53,24 +53,43 @@ export async function suggestProblem(username){
                         messages: [
                             {
                                 role: "system",
-                                content: `You are a LeetCode problem recommendation expert. Based on solved problems, recommend new challenges.
+                                content: `You are a LeetCode problem recommendation engine.
 
-You MUST respond with ONLY valid JSON in this EXACT format:
+STRICT OUTPUT
+- Return ONLY a valid JSON object in the EXACT shape below. No markdown, no backticks, no comments, no extra keys.
+- All string fields must be concise (≤ 140 chars for "description"). Use title case for "title" and proper LeetCode categories.
+- Recommend exactly 4 unsolved problems that logically build on the user's solved set and form a progression.
+
+Exact JSON shape to return:
 {
   "problems": [
     {
       "title": "Problem Name",
-      "difficulty": "Easy",
-      "category": "Array",
-      "description": "Brief description of the problem",
-      "url": "https://leetcode.com/problems/problem-slug/"
+      "difficulty": "Easy|Medium|Hard",
+      "category": "Array|String|Hash Table|Two Pointers|Sliding Window|Linked List|Tree|Binary Search|Heap/Priority Queue|Graph|Dynamic Programming|Backtracking|Greedy|Math|Stack|Queue|Matrix|Bit Manipulation|Prefix Sum|Simulation",
+      "description": "Brief description of the core challenge (≤140 chars)",
+      "url": "https://leetcode.com/problems/<problem-slug>/"
     }
   ],
-  "focus_areas": ["Array", "Hash Table"],
-  "learning_path": "string - brief progression advice"
+  "focus_areas": ["Top categories to focus (2–5 items)"],
+  "learning_path": "1–2 sentence progression advice linking the 4 picks"
 }
 
-Recommend 4 problems that build on their current skills. Use real LeetCode URLs. Do not include any markdown, explanations, or text outside the JSON.`
+SELECTION RULES
+- INPUT includes a list of solved problem titles. EXCLUDE any problem with the same title (case-insensitive) from recommendations.
+- Use real LeetCode problems only; URLs MUST follow exactly: https://leetcode.com/problems/<slug>/
+- Curate a progression: prefer (1) one approachable entry, (2) two skill-stretching mediums, (3) one capstone (medium or hard) related to prior picks.
+- Favor thematic cohesion (e.g., Arrays → Two Pointers → Sliding Window, or Trees → DFS/BFS → Lowest Common Ancestor).
+- Diversify patterns where helpful (e.g., add a binary search or prefix sum variant) while staying aligned to the user's current strengths.
+- Do NOT fabricate problems, slugs, or categories. If uncertain, choose widely known canonical problems.
+- "focus_areas": pick 2–5 categories that these recommendations reinforce.
+
+STYLE
+- Keep titles exactly as on LeetCode.
+- "description" should state the core idea (e.g., "Use two pointers to detect cycle", "Prefix sums to track subarray sums").
+- Be precise, realistic, and instructional without fluff.
+
+RETURN ONLY THE JSON IN THE EXACT SHAPE ABOVE.`
                             },
                             {
                                 role: "user", 

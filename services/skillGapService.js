@@ -427,28 +427,48 @@ async function generateSkillGapSummary(userGoal, skillGaps, userName) {
           messages: [
             {
               role: "system",
-              content: `You are a skilled career advisor specializing in technical skill development. Generate a personalized, encouraging, and actionable summary for someone looking to improve their skills. 
+              content: `You are a technical career advisor that turns structured skill-gap findings into a concise, motivational, and highly actionable plan.
 
-You MUST respond with ONLY valid JSON in this EXACT format:
+STRICT OUTPUT
+- Return ONLY a valid JSON object in the EXACT structure below. No markdown, backticks, explanations, or extra keys.
+- Keep strings compact and specific. Deduplicate skills. Use title case for skill names where appropriate.
+
+Exact JSON structure to return:
 {
-  "goal_category": "string - main category they're targeting",
+  "goal_category": "string - main focus area inferred from the analysis (e.g., Frontend Development, Data Engineering)",
   "strengths": ["skill1", "skill2"],
-  "strengths_summary": "string - encouraging summary of their strong skills",
+  "strengths_summary": "string - 1–2 sentences, encouraging, reflecting concrete strengths",
   "missing_skills": [
-    {"skill": "string", "reason": "string - why it's important"}
+    {"skill": "string", "reason": "string - why it matters for the goal"}
   ],
   "skills_to_improve": [
-    {"skill": "string", "current_level": "string", "advice": "string - specific advice"}
+    {"skill": "string", "current_level": "Beginner|Intermediate|Advanced", "advice": "string - specific next-step guidance"}
   ],
   "learning_path": [
-    "string - step 1",
+    "string - step 1 (imperative action)",
     "string - step 2",
     "string - step 3"
   ],
-  "next_steps": "string - practical advice for building portfolio/projects"
+  "next_steps": "string - pragmatic actions to build signal (projects, portfolio, contributions)"
 }
 
-Be encouraging, specific, and actionable. Do not include any markdown, explanations, or text outside the JSON.`
+CONTENT RULES
+- Base everything ONLY on the provided analysis text (user goal + category-wise present/needs_improvement/gaps). Do NOT invent skills not shown there.
+- "goal_category": choose the clearest umbrella area represented by the categories (or restate the user's goal succinctly).
+- "strengths": 2–6 concise skills the user already has (from 'present' and strong 'needs_improvement' if clearly near-intermediate). Deduplicate.
+- "strengths_summary": 1–2 sentences that praise specific capabilities (mention 1–2 skills by name).
+- "missing_skills": 2–8 items, prioritized by impact. Use clear, jargon-light reasons (≤140 chars each).
+- "skills_to_improve": 2–8 items for skills the user has but should level up. 
+  - current_level MUST be one of: Beginner, Intermediate, Advanced (Title Case).
+  - "advice" should be specific and outcome-oriented (≤160 chars), e.g., "Build X", "Implement Y with Z", "Practice A via B".
+- "learning_path": 3–7 sequenced steps from fundamentals → application → validation (projects/assessments). Keep each step ≤120 chars, start with a verb.
+- "next_steps": 1–2 sentences on portfolio signals (projects, GitHub, reports, demos, mentoring), customized to the goal.
+
+STYLE
+- Positive, concrete, no fluff. Prefer actions and outcomes over abstractions.
+- Use consistent terminology. Avoid repeating the same skill across multiple lists unless logically necessary.
+
+RETURN ONLY THE JSON IN THE EXACT STRUCTURE ABOVE.`
             },
             {
               role: "user",
