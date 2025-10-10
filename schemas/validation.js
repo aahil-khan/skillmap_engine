@@ -4,6 +4,43 @@
  */
 
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '..', 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+/**
+ * Log validation errors to file
+ */
+function logValidationError(context, body, errors) {
+  try {
+    const timestamp = new Date().toISOString();
+    const logFile = path.join(logsDir, 'validation-errors.log');
+    
+    const logEntry = {
+      timestamp,
+      context,
+      bodyKeys: Object.keys(body || {}),
+      bodyStructure: body,
+      errors: errors,
+    };
+    
+    const logLine = `\n${'='.repeat(80)}\n[${timestamp}] ${context}\n${JSON.stringify(logEntry, null, 2)}\n`;
+    
+    fs.appendFileSync(logFile, logLine, 'utf8');
+    console.log(`\n*** VALIDATION ERROR LOGGED TO: ${logFile} ***\n`);
+  } catch (err) {
+    console.error('[logValidationError] Failed to write log:', err.message);
+  }
+}
 
 // ============================================
 // Common Schemas
@@ -20,15 +57,30 @@ const skillSchema = z.object({
 
 const technicalSkillCategorySchema = z.object({
   category: z.string().min(1, 'Category name is required').max(100),
-  skills: z.array(z.string().min(1)).min(1, 'At least one skill is required'),
+  // Support both formats: array of strings OR array of objects with name/level
+  skills: z.union([
+    z.array(z.string().min(1)),  // Resume format: ["Python", "Java"]
+    z.array(z.object({           // Skills page format: [{name: "Python", level: "beginner"}]
+      name: z.string().min(1),
+      level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+    }))
+  ]),
+  level: z.enum(['Beginner', 'Intermediate', 'Advanced']).optional(), // Category-level for resume format
 });
 
 const experienceSchema = z.object({
-  company: z.string().min(1).max(200),
-  role: z.string().min(1).max(200),
+  company: z.string().min(1).max(200).optional(),
+  role: z.string().min(1).max(200).optional(),
   duration: z.string().max(100).optional(),
   description: z.string().max(2000).optional(),
   technologies: z.array(z.string()).optional(),
+  // Also support the resume analysis format
+  total_years: z.number().optional(),
+  recent_roles: z.array(z.object({
+    title: z.string(),
+    company: z.string(),
+    duration: z.string(),
+  })).optional(),
 });
 
 const projectSchema = z.object({
@@ -68,11 +120,21 @@ export const userProfileSchema = z.object({
     .max(500, 'Goal must be less than 500 characters')
     .optional(),
   
-  experience: z.array(experienceSchema)
-    .optional(),
+  // Support both array format and object format for experience
+  experience: z.union([
+    z.array(experienceSchema),
+    experienceSchema
+  ]).optional(),
   
   projects: z.array(projectSchema)
     .optional(),
+  
+  // Optional fields from resume analysis
+  education: z.array(z.object({
+    degree: z.string().optional(),
+    institution: z.string().optional(),
+    year: z.string().optional(),
+  })).optional(),
 });
 
 // ============================================
@@ -159,21 +221,34 @@ export const leetcodeSubmissionsSchema = z.object({
  */
 export function validateBody(schema) {
   return (req, res, next) => {
+    console.log('\n========== VALIDATE BODY CALLED ==========');
+    console.log('Request body keys:', Object.keys(req.body || {}));
+    
     try {
       const validated = schema.parse(req.body);
+      console.log('✓ Validation passed');
       req.validatedBody = validated;
       next();
     } catch (error) {
+      console.log('✗ Validation FAILED');
+      
       if (error instanceof z.ZodError) {
+        console.log('Zod validation errors:', JSON.stringify(error.errors, null, 2));
+        
+        // Log validation errors to file
+        logValidationError('validateBody', req.body, error.errors);
+        
         const validationError = new ValidationError(
           'Validation failed',
-          error.errors.map(err => ({
+          error.errors?.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-          }))
+          })) || [{ field: 'unknown', message: error.message }]
         );
         next(validationError);
       } else {
+        console.error('Non-Zod error:', error.message);
+        logValidationError('validateBody - Non-Zod Error', req.body, [{ error: error.message, stack: error.stack }]);
         next(error);
       }
     }
@@ -193,10 +268,10 @@ export function validateParams(schema) {
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError(
           'Parameter validation failed',
-          error.errors.map(err => ({
+          error.errors?.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-          }))
+          })) || [{ field: 'unknown', message: error.message }]
         );
         next(validationError);
       } else {
@@ -223,10 +298,10 @@ export function validateQuery(schema) {
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError(
           'Query parameter validation failed',
-          error.errors.map(err => ({
+          error.errors?.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-          }))
+          })) || [{ field: 'unknown', message: error.message }]
         );
         next(validationError);
       } else {

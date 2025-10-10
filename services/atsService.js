@@ -135,8 +135,14 @@ The overall_score MUST be a number between 0 and 100. Do not include any markdow
         const jsonText = extractOpenAIContent(response);
         logger.debug('OpenAI response received', { responseLength: jsonText.length });
         
+        // Log the actual response for debugging
+        console.log('[ATS] Raw OpenAI response:', jsonText.substring(0, 500));
+        
         // Extract and validate JSON
         const extracted = extractJSON(jsonText);
+        console.log('[ATS] Extracted JSON keys:', Object.keys(extracted));
+        console.log('[ATS] Breakdown keys:', Object.keys(extracted.breakdown || {}));
+        
         const validated = validateAIResponse(extracted, atsScoreSchema, 'ATS scoring');
         
         // Ensure score is within valid range

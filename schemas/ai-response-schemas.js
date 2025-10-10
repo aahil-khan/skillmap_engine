@@ -92,25 +92,30 @@ export const resumeAnalysisSchema = z.object({
  * Validates skill gap analysis results
  */
 export const skillGapAnalysisSchema = z.object({
-  goal: z.string().min(1),
+  goal_category: z.string().min(1, 'Goal category is required'),
   
-  current_skills: z.array(z.string()).min(1),
+  strengths: z.array(z.string()).default([]),
   
-  required_skills: z.array(z.string()).min(1),
+  strengths_summary: z.string().default(''),
   
-  skill_gaps: z.array(
+  missing_skills: z.array(
     z.object({
       skill: z.string().min(1),
-      importance: z.enum(['Critical', 'High', 'Medium', 'Low']),
-      learning_resources: z.array(z.string()).default([]),
+      reason: z.string().min(1),
     })
-  ).min(1, 'At least one skill gap required'),
+  ).default([]),
   
-  matched_skills: z.array(z.string()).default([]),
+  skills_to_improve: z.array(
+    z.object({
+      skill: z.string().min(1),
+      current_level: z.string().min(1),
+      advice: z.string().min(1),
+    })
+  ).default([]),
   
-  recommendations: z.array(z.string()).default([]),
+  learning_path: z.array(z.string()).default([]),
   
-  estimated_time_to_goal: z.string().default('Unknown'),
+  next_steps: z.string().default(''),
 });
 
 /**
@@ -121,15 +126,16 @@ export const atsScoreSchema = z.object({
   overall_score: z.number().min(0).max(100),
   
   breakdown: z.object({
-    keyword_match: z.number().min(0).max(100),
-    experience_match: z.number().min(0).max(100),
     skills_match: z.number().min(0).max(100),
-    formatting: z.number().min(0).max(100),
+    experience_match: z.number().min(0).max(100),
+    education_match: z.number().min(0).max(100).optional(), // Optional for flexibility
+    keyword_match: z.number().min(0).max(100).optional(),   // Optional fallback
+    formatting: z.number().min(0).max(100).optional(),      // Optional fallback
   }),
   
-  strengths: z.array(z.string()).min(1),
+  strengths: z.array(z.string()).min(1, 'At least one strength required'),
   
-  improvements: z.array(z.string()).min(1),
+  improvements: z.array(z.string()).min(1, 'At least one improvement required'),
   
   missing_keywords: z.array(z.string()).default([]),
   

@@ -24,7 +24,7 @@ export class AppError extends Error {
       error: {
         code: this.code,
         message: this.message,
-        ...(process.env.NODE_ENV === 'development' && this.details && { details: this.details }),
+        ...(this.details && { details: this.details }),
       }
     };
   }

@@ -51,14 +51,35 @@ export async function createUserProfile(profileData) {
     const skillsListWithLevel = {};
     if (technical_skills && Array.isArray(technical_skills)) {
       for (const category of technical_skills) {
-        for (const skill of category.skills) {
-          skillsListWithLevel[skill.name] = skill.level;
+        // Handle both formats: array of strings or array of objects
+        const categoryLevel = category.level || 'Intermediate'; // default level
+        
+        if (Array.isArray(category.skills)) {
+          for (const skill of category.skills) {
+            if (typeof skill === 'string') {
+              // Resume format: skills are strings, level is on category
+              skillsListWithLevel[skill] = categoryLevel;
+            } else if (skill.name) {
+              // Object format: skill has name and level properties
+              skillsListWithLevel[skill.name] = skill.level || categoryLevel;
+            }
+          }
         }
       }
     }
 
     // Create embedding for the profile
     const embedding = await embedText(profileText);
+    
+    // Calculate experience count based on format
+    let experienceCount = 0;
+    if (experience) {
+      if (Array.isArray(experience)) {
+        experienceCount = experience.length;
+      } else if (experience.recent_roles && Array.isArray(experience.recent_roles)) {
+        experienceCount = experience.recent_roles.length;
+      }
+    }
     
     const point = {
       id: existingProfileId || Date.now(),
@@ -70,7 +91,7 @@ export async function createUserProfile(profileData) {
         skills_count: technical_skills ? technical_skills.reduce((total, cat) => total + cat.skills.length, 0) : 0,
         skills_list_with_level: skillsListWithLevel,
         projects_count: projects ? projects.length : 0,
-        experience_count: experience ? experience.length : 0,
+        experience_count: experienceCount,
         learning_goal: goal || '',
         has_learning_goal: !!goal,
         created_at: isUpdate ? existing[0].payload.created_at : new Date().toISOString(),
@@ -110,12 +131,15 @@ export async function createUserProfile(profileData) {
     const ats_score_raw = await atsScore(user_id);
     console.log("Ats score raw", ats_score_raw);
     
-    const ats_score_value = typeof ats_score_raw === 'string'
-      ? Number(ats_score_raw.replace('%', '').trim())
-      : Number(ats_score_raw);
+    // Extract the overall_score from the ATS result object
+    const ats_score_value = ats_score_raw?.overall_score 
+      ? Number(ats_score_raw.overall_score)
+      : (typeof ats_score_raw === 'string'
+          ? Number(ats_score_raw.replace('%', '').trim())
+          : Number(ats_score_raw));
 
 
-    if (typeof ats_score_value === 'number') {
+    if (typeof ats_score_value === 'number' && !isNaN(ats_score_value)) {
       console.log('ATS Score calculated successfully:', ats_score_value);
 
       //store/update ats score
@@ -146,27 +170,42 @@ export async function createUserProfile(profileData) {
       // Flatten skills from all categories
       const skillsToUpsert = [];
       for (const category of technical_skills) {
+        const categoryLevel = category.level || 'Intermediate'; // Default level from category
+        const categoryName = category.category || 'General';
+        
         if (category.skills && Array.isArray(category.skills)) {
-        for (const skill of category.skills) {
+          for (const skill of category.skills) {
+            if (typeof skill === 'string') {
+              // String format (after validation transform or resume format)
+              skillsToUpsert.push({
+                userid: user_id,
+                skill_name: skill,
+                skill_level: categoryLevel.toLowerCase(), // Normalize to lowercase
+                skill_category: categoryName
+              });
+            } else if (skill.name) {
+              // Object format with name/level properties
+              skillsToUpsert.push({
+                userid: user_id,
+                skill_name: skill.name,
+                skill_level: (skill.level || categoryLevel).toLowerCase(), // Normalize to lowercase
+                skill_category: categoryName
+              });
+            }
+          }
+        } else if (category.skills && typeof category.skills === 'object' && category.skills.name) {
+          // Handle case where skills is a single object, not array
           skillsToUpsert.push({
             userid: user_id,
-            skill_name: skill.name,
-            skill_level: skill.level,
-            skill_category: category.category || null
+            skill_name: category.skills.name,
+            skill_level: (category.skills.level || categoryLevel).toLowerCase(),
+            skill_category: categoryName
           });
-        }
-        } else if (category.skills && typeof category.skills === 'object') {
-        // Handle case where skills is a single object, not array
-        skillsToUpsert.push({
-          userid: user_id,
-          skill_name: category.skills.name,
-          skill_level: category.skills.level,
-          skill_category: category.category || null
-        });
         }
       }
 
       if (skillsToUpsert.length > 0) {
+        console.log('Upserting skills:', skillsToUpsert.length);
         const { data, error } = await supabase
         .from('skills')
         .upsert(
@@ -226,9 +265,19 @@ function buildProfileText({ name, technical_skills, inferred_areas_of_strength, 
   if (technical_skills && Array.isArray(technical_skills)) {
     const skillsList = [];
     for (const category of technical_skills) {
+      const categoryLevel = category.level || 'Intermediate';
+      const categoryName = category.category || 'General';
+      
       if (category.skills && Array.isArray(category.skills)) {
         for (const skill of category.skills) {
-          skillsList.push(`${skill.level} in ${skill.name}`);
+          if (typeof skill === 'string') {
+            // Resume format: skills are strings, level is on category
+            skillsList.push(`${categoryLevel} in ${skill} (${categoryName})`);
+          } else if (skill.name) {
+            // Object format: skill has name and level properties
+            const skillLevel = skill.level || categoryLevel;
+            skillsList.push(`${skillLevel} in ${skill.name} (${categoryName})`);
+          }
         }
       }
     }
@@ -254,16 +303,30 @@ function buildProfileText({ name, technical_skills, inferred_areas_of_strength, 
   }
   
   // Add experience section
-  if (experience && Array.isArray(experience)) {
-    const experienceDescriptions = experience.map(exp => {
-      let techString = 'various technologies';
-      if (Array.isArray(exp.technologies)) {
-        techString = exp.technologies.join(', ');
-      } else if (typeof exp.technologies === 'string') {
-        techString = exp.technologies;
+  if (experience) {
+    let experienceDescriptions = [];
+    
+    if (Array.isArray(experience)) {
+      // Array format (manual input)
+      experienceDescriptions = experience.map(exp => {
+        let techString = 'various technologies';
+        if (Array.isArray(exp.technologies)) {
+          techString = exp.technologies.join(', ');
+        } else if (typeof exp.technologies === 'string') {
+          techString = exp.technologies;
+        }
+        return `${exp.duration || ''} ${exp.role} at ${exp.company} (${techString})`;
+      });
+    } else if (experience.recent_roles && Array.isArray(experience.recent_roles)) {
+      // Resume format (object with recent_roles array)
+      experienceDescriptions = experience.recent_roles.map(role => 
+        `${role.duration} ${role.title} at ${role.company}`
+      );
+      if (experience.total_years) {
+        profileText += `Total Experience: ${experience.total_years} years\n`;
       }
-      return `${exp.duration || ''} ${exp.role} at ${exp.company} (${techString})`;
-    });
+    }
+    
     if (experienceDescriptions.length > 0) {
       profileText += `Experience: ${experienceDescriptions.join('. ')}\n`;
     }
