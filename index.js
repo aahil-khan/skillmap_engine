@@ -24,6 +24,7 @@ import profileRoutes from './routes/profile.js';
 import skillsRoutes from './routes/skills.js';
 import userDataRoutes from './routes/userData.js';
 import peerMatchingRoutes from './routes/peerMatching.js';
+import peerConnectionsRoutes from './routes/peerConnections.js';
 
 // Import config
 import { supabase } from './config/supabase.js';
@@ -102,6 +103,9 @@ app.use('/', leetcodeRoutes);
 
 // Peer matching routes (authentication required)
 app.use('/peer', peerMatchingRoutes);
+
+// Peer connections & messaging routes (authentication required)
+app.use('/peer', peerConnectionsRoutes);
 
 // Experience route
 

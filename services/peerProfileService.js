@@ -147,6 +147,7 @@ export async function getPublicPeerProfile(peerUserId) {
 
     return {
       ...data,
+      userid: peerUserId, // Ensure userid is included
       skills: skills || [],
       leetcode_stats: leetcode || null
     };
@@ -208,12 +209,64 @@ export async function getRecommendedMatches(userId, matchType = 'both', limit = 
       return [];
     }
 
+    // Get all existing connections for this user (any status)
+    const { data: existingConnections } = await supabase
+      .from('peer_connections')
+      .select('sender_userid, receiver_userid')
+      .or(`sender_userid.eq.${userId},receiver_userid.eq.${userId}`);
+
+    // Create set of user IDs that already have connections
+    const connectedUserIds = new Set();
+    if (existingConnections) {
+      existingConnections.forEach(conn => {
+        connectedUserIds.add(conn.sender_userid);
+        connectedUserIds.add(conn.receiver_userid);
+      });
+    }
+
+    logger.info('[PeerProfile] Filtering out existing connections', {
+      totalMatches: matches.length,
+      existingConnectionsCount: connectedUserIds.size - 1 // -1 because it includes the user themselves
+    });
+
+    // Filter out users with existing connections
+    const filteredMatches = matches.filter(match => !connectedUserIds.has(match.user2_id));
+
+    logger.info('[PeerProfile] Matches after filtering', {
+      remaining: filteredMatches.length
+    });
+
     // Fetch full peer profiles for each match
     const enrichedMatches = await Promise.all(
-      matches.map(async (match) => {
+      filteredMatches.map(async (match) => {
         try {
           const peerProfile = await getPublicPeerProfile(match.user2_id);
+          
+          logger.info('[PeerProfile] Fetched peer profile for match', {
+            user2_id: match.user2_id,
+            hasProfile: !!peerProfile,
+            profileKeys: peerProfile ? Object.keys(peerProfile) : [],
+            userid: peerProfile?.userid,
+            display_name: peerProfile?.display_name
+          });
+          
+          // Return with both old structure (for compatibility) AND new flat structure
           return {
+            // New flat structure for frontend
+            peerUserId: peerProfile.userid || match.user2_id,
+            displayName: peerProfile.display_name || '',
+            title: peerProfile.title || '',
+            bio: peerProfile.bio || '',
+            experienceLevel: peerProfile.experience_level || '',
+            availability: peerProfile.availability || '',
+            lookingFor: peerProfile.looking_for || [],
+            skillTags: peerProfile.skill_tags || [],
+            interestAreas: peerProfile.interest_areas || [],
+            overallScore: match.overall_score || 0,
+            sharedSkills: match.shared_skills || [],
+            complementarySkills: match.complementary_skills || [],
+            leetcodeStats: peerProfile.leetcode_stats || null,
+            // Old structure (in case frontend still uses it)
             match_score: match.overall_score,
             shared_skills: match.shared_skills,
             complementary_skills: match.complementary_skills,

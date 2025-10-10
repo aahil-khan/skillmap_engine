@@ -146,6 +146,15 @@ router.get('/matches', authenticate, asyncHandler(async (req, res) => {
  */
 router.post('/connect', authenticate, asyncHandler(async (req, res) => {
   const senderId = req.user.id;
+  
+  // Log the entire request body for debugging
+  logger.info('[API /peer/connect] Request body received:', {
+    body: req.body,
+    bodyKeys: Object.keys(req.body),
+    receiverId: req.body.receiverId,
+    connectionType: req.body.connectionType
+  });
+
   const { receiverId, connectionType, message } = req.body;
 
   // Validate required fields
@@ -202,63 +211,6 @@ router.post('/skip', authenticate, asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Peer skipped'
-  });
-}));
-
-/**
- * GET /peer/connections
- * Get user's connections
- * Query params: status (pending|accepted|declined|blocked) - optional
- */
-router.get('/connections', authenticate, asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const status = req.query.status || null;
-
-  // Validate status if provided
-  if (status && !['pending', 'accepted', 'declined', 'blocked'].includes(status)) {
-    throw new ValidationError('Invalid status. Must be: pending, accepted, declined, or blocked');
-  }
-
-  logger.info('[API] Getting connections', { userId, status });
-
-  const connections = await peerProfileService.getUserConnections(userId, status);
-
-  res.json({
-    success: true,
-    data: {
-      connections,
-      total: connections.length,
-      filter: status || 'all'
-    }
-  });
-}));
-
-/**
- * POST /peer/connections/:connectionId/respond
- * Accept or decline a connection request
- */
-router.post('/connections/:connectionId/respond', authenticate, asyncHandler(async (req, res) => {
-  const receiverId = req.user.id;
-  const connectionId = req.params.connectionId;
-  const { response } = req.body;
-
-  // Validate response
-  if (!response || !['accept', 'decline'].includes(response)) {
-    throw new ValidationError('Response must be either "accept" or "decline"');
-  }
-
-  logger.info('[API] Responding to connection', { receiverId, connectionId, response });
-
-  const connection = await peerProfileService.respondToConnection(
-    connectionId,
-    receiverId,
-    response
-  );
-
-  res.json({
-    success: true,
-    message: `Connection ${response}ed successfully`,
-    data: connection
   });
 }));
 
