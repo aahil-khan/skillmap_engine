@@ -101,13 +101,31 @@ export async function getUserConnections(userId, status = null) {
       }));
     };
 
+    // For accepted connections, we need to ensure both sender_profile and receiver_profile are available
+    // regardless of whether the user was the sender or receiver
+    const acceptedConnections = [
+      ...enrichSent.filter(c => c.status === 'accepted'),
+      ...enrichReceived.filter(c => c.status === 'accepted')
+    ];
+
+    logger.info('[Connections] Accepted connections breakdown', {
+      userId,
+      acceptedCount: acceptedConnections.length,
+      fromSent: enrichSent.filter(c => c.status === 'accepted').length,
+      fromReceived: enrichReceived.filter(c => c.status === 'accepted').length,
+      sample: acceptedConnections[0] ? {
+        id: acceptedConnections[0].id,
+        sender_userid: acceptedConnections[0].sender_userid,
+        receiver_userid: acceptedConnections[0].receiver_userid,
+        has_sender_profile: !!acceptedConnections[0].sender_profile,
+        has_receiver_profile: !!acceptedConnections[0].receiver_profile
+      } : null
+    });
+
     const result = {
       sent: addUnreadCounts(enrichSent),
       received: addUnreadCounts(enrichReceived),
-      accepted: addUnreadCounts([
-        ...enrichSent.filter(c => c.status === 'accepted'),
-        ...enrichReceived.filter(c => c.status === 'accepted')
-      ]),
+      accepted: addUnreadCounts(acceptedConnections),
       pending_sent: enrichSent.filter(c => c.status === 'pending'),
       pending_received: enrichReceived.filter(c => c.status === 'pending')
     };
