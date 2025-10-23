@@ -1,5 +1,5 @@
 # Use the official Node.js 18 LTS (Alpine) image for smaller size and better security
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -28,7 +28,7 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy source code
 COPY . .
