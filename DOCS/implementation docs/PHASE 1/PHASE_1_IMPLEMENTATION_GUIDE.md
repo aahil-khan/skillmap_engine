@@ -64,7 +64,7 @@ Foundation → Database → Infrastructure → Taxonomy → Resume → Profile �
 ```bash
 - Node.js 20+
 - TypeScript 5+
-- pnpm (preferred) or npm
+- npm (preferred) or npm
 - Git
 - VS Code (recommended IDE)
 ```
@@ -95,14 +95,14 @@ Set up TypeScript monorepo with Hono framework, linting, testing, and logging.
 git checkout -b feat/production-refactor
 
 # Initialize package.json
-pnpm init
+npm init
 
 # Install core dependencies
-pnpm add hono @hono/node-server
-pnpm add -D typescript @types/node tsx
-pnpm add -D vitest @vitest/ui
-pnpm add -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
-pnpm add -D prettier eslint-config-prettier
+npm add hono @hono/node-server
+npm add -D typescript @types/node tsx
+npm add -D vitest @vitest/ui
+npm add -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+npm add -D prettier eslint-config-prettier
 ```
 
 #### 3.2 TypeScript Configuration
@@ -158,7 +158,7 @@ src/
 #### 3.4 Logging Setup
 Install Pino:
 ```bash
-pnpm add pino pino-pretty
+npm add pino pino-pretty
 ```
 
 Create `src/utils/logger.ts`:
@@ -265,7 +265,7 @@ Update `package.json`:
 ### Testing
 ```bash
 # Start dev server
-pnpm dev
+npm dev
 
 # In another terminal, test health endpoint
 curl http://localhost:5005/health
@@ -764,7 +764,7 @@ Set up clients for Supabase, Qdrant, Redis, OpenAI, and Cohere with proper error
 
 #### 5.1 Supabase Client
 ```bash
-pnpm add @supabase/supabase-js
+npm add @supabase/supabase-js
 ```
 
 Create `src/lib/db/supabase.ts`:
@@ -803,7 +803,7 @@ export async function testSupabaseConnection(): Promise<boolean> {
 
 #### 5.2 Qdrant Client
 ```bash
-pnpm add @qdrant/js-client
+npm add @qdrant/js-client
 ```
 
 Create `src/lib/vector/qdrant.ts`:
@@ -887,7 +887,7 @@ export async function initQdrantCollections() {
 
 #### 5.3 Redis Client (Upstash)
 ```bash
-pnpm add @upstash/redis
+npm add @upstash/redis
 ```
 
 Create `src/lib/cache/redis.ts`:
@@ -959,8 +959,8 @@ export async function testRedisConnection(): Promise<boolean> {
 
 #### 5.4 OpenAI Client
 ```bash
-pnpm add openai
-pnpm add @instructor-ai/instructor zod
+npm add openai
+npm add @instructor-ai/instructor zod
 ```
 
 Create `src/lib/llm/openai.ts`:
@@ -1020,7 +1020,7 @@ export async function createBatchEmbeddings(texts: string[]): Promise<number[][]
 
 #### 5.5 Cohere Client
 ```bash
-pnpm add cohere-ai
+npm add cohere-ai
 ```
 
 Create `src/lib/llm/cohere.ts`:
@@ -1238,7 +1238,7 @@ export default {
 ### Testing Infrastructure
 ```bash
 # Start server
-pnpm dev
+npm dev
 
 # Test health endpoint
 curl http://localhost:5005/health
@@ -1551,7 +1551,7 @@ Add to `package.json`:
 ### Testing
 ```bash
 # Seed taxonomy
-pnpm seed:taxonomy
+npm seed:taxonomy
 
 # Verify in Supabase
 SELECT COUNT(*) FROM skills_taxonomy;
