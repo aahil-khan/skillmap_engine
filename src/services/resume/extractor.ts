@@ -18,6 +18,12 @@ const instructor = Instructor({
  * - Vector search is deterministic and confidence-scored
  */
 export async function extractResumeData(resumeText: string): Promise<ResumeExtraction> {
+  // Validate input
+  const trimmedText = resumeText.trim();
+  if (!trimmedText || trimmedText.length < 50) {
+    throw new Error('Resume text is too short or empty (minimum 50 characters)');
+  }
+
   try {
     const extraction = await instructor.chat.completions.create({
       messages: [
@@ -30,7 +36,8 @@ Rules:
 - For dates, prefer ISO format (YYYY-MM) but keep original if unclear
 - Include ALL technologies mentioned in work experience and projects
 - Be precise - only extract information explicitly stated
-- If proficiency level is not mentioned, omit it`,
+- If proficiency level is not mentioned, omit it
+- DO NOT make up or infer information not present in the resume`,
         },
         {
           role: 'user',
@@ -39,6 +46,7 @@ Rules:
       ],
       model: MODELS.STRUCTURED_OUTPUT,
       temperature: 0, // CRITICAL: Deterministic
+      seed: 42, // Additional determinism control
       response_model: {
         schema: ResumeExtractionSchema,
         name: 'ResumeExtraction',

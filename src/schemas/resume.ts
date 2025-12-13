@@ -7,9 +7,9 @@ export const ResumeExtractionSchema = z.object({
     email: z.string().email().optional(),
     phone: z.string().optional(),
     location: z.string().optional(),
-    linkedin_url: z.string().url().optional(),
-    github_url: z.string().url().optional(),
-    portfolio_url: z.string().url().optional(),
+    linkedin_url: z.string().optional(), // Allow URLs without protocol (common in resumes)
+    github_url: z.string().optional(),
+    portfolio_url: z.string().optional(),
   }),
   summary: z.string().optional(),
   skills: z.array(z.object({
@@ -29,8 +29,8 @@ export const ResumeExtractionSchema = z.object({
   projects: z.array(z.object({
     name: z.string(),
     description: z.string().optional(),
-    url: z.string().url().optional(),
-    github_url: z.string().url().optional(),
+    url: z.string().optional(), // Allow URLs without protocol
+    github_url: z.string().optional(),
     technologies: z.array(z.string()).default([]),
     start_date: z.string().optional(),
     end_date: z.string().optional(),

@@ -8,6 +8,7 @@ import { initQdrantCollections } from './lib/vector/qdrant.js';
 import { testRedisConnection } from './lib/cache/redis.js';
 import resumeRoutes from './routes/resume.js';
 import testRoutes from './routes/test.js';
+import profileRoutes from './routes/profile.js';
 
 const app = new Hono();
 
@@ -18,6 +19,7 @@ app.use('*', cors());
 // Routes
 app.route('/resume', resumeRoutes);
 app.route('/test', testRoutes);
+app.route('/profile', profileRoutes);
 
 // Health check
 app.get('/health', async (c) => {
