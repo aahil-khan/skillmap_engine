@@ -1,0 +1,435 @@
+{
+  "info": {
+    "name": "SkillMap Engine - Phase 1 Complete Flow",
+    "description": "End-to-end testing: Sign up → Resume Upload → Profile Creation → Peer Matching",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set('jwt_token', jsonData.access_token);",
+                  "    pm.environment.set('user_id', jsonData.user.id);",
+                  "    pm.environment.set('user_email', jsonData.user.email);",
+                  "    console.log('✅ User signed up successfully');",
+                  "    console.log('User ID:', jsonData.user.id);",
+                  "} else {",
+                  "    console.log('❌ Sign up failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_user_email}}\",\n  \"password\": \"{{test_user_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/signup",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "signup"]
+            },
+            "description": "Create a new user account. The JWT token is automatically saved to environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Sign In (Existing User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set('jwt_token', jsonData.access_token);",
+                  "    pm.environment.set('user_id', jsonData.user.id);",
+                  "    pm.environment.set('user_email', jsonData.user.email);",
+                  "    console.log('✅ User signed in successfully');",
+                  "    console.log('User ID:', jsonData.user.id);",
+                  "} else {",
+                  "    console.log('❌ Sign in failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_user_email}}\",\n  \"password\": \"{{test_user_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/token?grant_type=password",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                }
+              ]
+            },
+            "description": "Sign in with existing credentials. Use this instead of Sign Up if user already exists."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Resume Upload & Processing",
+      "item": [
+        {
+          "name": "Upload Resume",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set('resume_id', jsonData.resume_id);",
+                  "    console.log('✅ Resume uploaded successfully');",
+                  "    console.log('Resume ID:', jsonData.resume_id);",
+                  "    console.log('Skills extracted:', jsonData.skills_summary.matched_count, 'matched,', jsonData.skills_summary.unmatched_count, 'unmatched');",
+                  "} else {",
+                  "    console.log('❌ Resume upload failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "resume",
+                  "type": "file",
+                  "src": "path/to/your/resume.pdf",
+                  "description": "Upload a PDF resume file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/resume/upload",
+              "host": ["{{base_url}}"],
+              "path": ["resume", "upload"]
+            },
+            "description": "Upload a PDF resume. Skills are extracted and normalized automatically. Unmatched skills are added to taxonomy with 'Others' category."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Resume Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/resume",
+              "host": ["{{base_url}}"],
+              "path": ["resume"]
+            },
+            "description": "Retrieve the user's resume data including skills, work experience, projects, and education."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Profile Management (Step 1 - Skills)",
+      "item": [
+        {
+          "name": "Get Skills List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Skills retrieved:', jsonData.skills.length, 'skills');",
+                  "    console.log('Skills requiring proficiency:', jsonData.skills.filter(s => !s.skill_level).length);",
+                  "} else {",
+                  "    console.log('❌ Failed to get skills:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profile/skills",
+              "host": ["{{base_url}}"],
+              "path": ["profile", "skills"]
+            },
+            "description": "Get all user skills with taxonomy data. This is Step 1 of profile creation - review and set proficiency levels."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Skills Proficiency",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skills\": [\n    {\n      \"skill_id\": \"skill-uuid-1\",\n      \"skill_level\": \"intermediate\"\n    },\n    {\n      \"skill_id\": \"skill-uuid-2\",\n      \"skill_level\": \"advanced\"\n    },\n    {\n      \"skill_id\": \"skill-uuid-3\",\n      \"skill_level\": \"beginner\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/profile/skills",
+              "host": ["{{base_url}}"],
+              "path": ["profile", "skills"]
+            },
+            "description": "Update skill proficiency levels. Use skill IDs from the GET /profile/skills response. Valid levels: beginner, intermediate, advanced, expert."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Profile Management (Step 2 - Goals & Bio)",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": ["{{base_url}}"],
+              "path": ["profile"]
+            },
+            "description": "Get complete user profile including bio, goals, preferences, and embeddings status."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (Complete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('✅ Profile updated successfully');",
+                  "    console.log('Profile embeddings will be generated asynchronously');",
+                  "} else {",
+                  "    console.log('❌ Profile update failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"John Doe\",\n  \"bio\": \"Full-stack developer passionate about building scalable web applications. Currently learning React and TypeScript. Looking to collaborate on open-source projects and improve my system design skills.\",\n  \"experience_level\": \"1-3years\",\n  \"learning_goals\": [\n    {\n      \"original_goal\": \"Master React and Next.js\",\n      \"refined_goal\": \"Build production-ready React applications using Next.js with SSR and API routes\",\n      \"target_proficiency\": \"advanced\",\n      \"timeframe\": \"3months\"\n    },\n    {\n      \"original_goal\": \"Learn System Design\",\n      \"refined_goal\": \"Understand distributed systems, caching strategies, and scalability patterns\",\n      \"target_proficiency\": \"intermediate\",\n      \"timeframe\": \"6months\"\n    }\n  ],\n  \"preferences\": {\n    \"available_days\": [\"Monday\", \"Wednesday\", \"Friday\"],\n    \"preferred_time_slots\": [\"evening\"],\n    \"communication_style\": \"structured\",\n    \"is_searchable\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/profile",
+              "host": ["{{base_url}}"],
+              "path": ["profile"]
+            },
+            "description": "Complete profile with bio, goals, experience level, and availability preferences. This triggers async embedding generation."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Peer Matching",
+      "item": [
+        {
+          "name": "Get Match Recommendations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Found', jsonData.matches.length, 'matches');",
+                  "    console.log('Cache status:', jsonData.cached ? 'HIT' : 'MISS');",
+                  "    ",
+                  "    if (jsonData.matches.length > 0) {",
+                  "        console.log('\\nTop match:');",
+                  "        const top = jsonData.matches[0];",
+                  "        console.log('  User:', top.display_name);",
+                  "        console.log('  Total Score:', top.total_score);",
+                  "        console.log('  Shared Skills:', top.factors.shared_skills_score);",
+                  "        console.log('  Complementary:', top.factors.complementary_skills_score);",
+                  "        console.log('  Goal Alignment:', top.factors.goal_alignment_score);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Matching failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/peer/matches?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["peer", "matches"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of matches to return (default: 10)"
+                }
+              ]
+            },
+            "description": "Get peer match recommendations based on skills, goals, experience, and availability. Results are cached for 1 hour."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Additional Utilities",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running and healthy."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Skills (Taxonomy)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/skills/search?query=javascript&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["skills", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "javascript"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Search the skill taxonomy. Useful for finding skill IDs when manually adding skills."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5005",
+      "type": "string"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { testRedisConnection } from './lib/cache/redis.js';
 import resumeRoutes from './routes/resume.js';
 import testRoutes from './routes/test.js';
 import profileRoutes from './routes/profile.js';
+import matchingRoutes from './routes/matching.js';
 
 const app = new Hono();
 
@@ -20,6 +21,7 @@ app.use('*', cors());
 app.route('/resume', resumeRoutes);
 app.route('/test', testRoutes);
 app.route('/profile', profileRoutes);
+app.route('/peer/matches', matchingRoutes);
 
 // Health check
 app.get('/health', async (c) => {

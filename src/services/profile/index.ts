@@ -58,14 +58,30 @@ export async function getUserProfile(userId: string) {
 /**
  * Update user profile fields
  */
-export async function updateUserProfile(userId: string, updates: ProfileUpdate) {
+export async function updateUserProfile(userId: string, email: string, updates: ProfileUpdate) {
+  // Separate learning_goals and preferences from profile updates
+  const { learning_goals, preferences, ...profileUpdates } = updates;
+  
+  // Check profile completion criteria
+  const hasDisplayName = profileUpdates.display_name || (await supabase.from('user_profiles').select('display_name').eq('user_id', userId).single()).data?.display_name;
+  const hasBio = profileUpdates.bio || (await supabase.from('user_profiles').select('bio').eq('user_id', userId).single()).data?.bio;
+  const hasExperience = profileUpdates.experience_level || (await supabase.from('user_profiles').select('experience_level').eq('user_id', userId).single()).data?.experience_level;
+  const hasGoals = learning_goals && learning_goals.length > 0;
+  
+  const profile_completed = !!(hasDisplayName && hasBio && hasExperience && hasGoals);
+  
+  // Upsert user profile
   const { data, error } = await supabase
     .from('user_profiles')
-    .update({
-      ...updates,
+    .upsert({
+      user_id: userId,
+      email: email,
+      ...profileUpdates,
+      profile_completed,
       updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'user_id',
     })
-    .eq('user_id', userId)
     .select()
     .single();
   
@@ -74,7 +90,39 @@ export async function updateUserProfile(userId: string, updates: ProfileUpdate) 
     throw error;
   }
   
-  logger.info('Profile updated', { userId, fields: Object.keys(updates) });
+  // Handle learning goals if provided
+  if (learning_goals) {
+    // Delete existing goals
+    await supabase.from('learning_goals').delete().eq('user_id', userId);
+    
+    // Insert new goals
+    if (learning_goals.length > 0) {
+      const goalsToInsert = learning_goals.map(goal => ({
+        user_id: userId,
+        original_goal: goal.original_goal,
+        refined_goal: goal.refined_goal || goal.original_goal,
+        target_proficiency: goal.target_proficiency || 'intermediate',
+        timeframe: goal.timeframe || 'ongoing',
+        status: 'active' as const,
+      }));
+      
+      const { error: goalsError } = await supabase
+        .from('learning_goals')
+        .insert(goalsToInsert);
+      
+      if (goalsError) {
+        logger.error('Learning goals insert failed', { userId, error: goalsError.message });
+        throw goalsError;
+      }
+    }
+  }
+  
+  // Handle preferences if provided
+  if (preferences) {
+    await updatePeerPreferences(userId, preferences as any);
+  }
+  
+  logger.info('Profile updated', { userId, fields: Object.keys(updates), profile_completed });
   return data;
 }
 

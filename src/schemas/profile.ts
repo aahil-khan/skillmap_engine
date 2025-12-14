@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const LearningGoalSchema = z.object({
+  original_goal: z.string().min(1),
+  refined_goal: z.string().optional(),
+  target_proficiency: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).optional(),
+  timeframe: z.enum(['1month', '3months', '6months', '1year', 'ongoing']).optional(),
+});
+
 export const ProfileUpdateSchema = z.object({
   display_name: z.string().min(2).max(100).optional(),
   bio: z.string().max(500).optional(),
@@ -7,6 +14,13 @@ export const ProfileUpdateSchema = z.object({
   timezone: z.string().optional(),
   experience_level: z.enum(['entry', '1-3years', '3-5years', '5+years']).optional(),
   is_searchable: z.boolean().optional(),
+  learning_goals: z.array(LearningGoalSchema).optional(),
+  preferences: z.object({
+    available_days: z.array(z.string()).optional(),
+    preferred_time_slots: z.array(z.string()).optional(),
+    communication_style: z.string().optional(),
+    is_searchable: z.boolean().optional(),
+  }).optional(),
 });
 
 export const PeerPreferencesSchema = z.object({
@@ -17,5 +31,6 @@ export const PeerPreferencesSchema = z.object({
   is_accepting_requests: z.boolean().optional(),
 });
 
+export type LearningGoal = z.infer<typeof LearningGoalSchema>;
 export type ProfileUpdate = z.infer<typeof ProfileUpdateSchema>;
 export type PeerPreferences = z.infer<typeof PeerPreferencesSchema>;

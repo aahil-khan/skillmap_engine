@@ -24,6 +24,7 @@ app.get('/', authenticate, async (c) => {
  */
 app.patch('/', authenticate, async (c) => {
   const userId = c.get('userId');
+  const user = c.get('user');
   
   const body = await c.req.json();
   const parseResult = ProfileUpdateSchema.safeParse(body);
@@ -32,7 +33,7 @@ app.patch('/', authenticate, async (c) => {
     throw new ValidationError('Invalid profile data', parseResult.error.errors);
   }
   
-  const updated = await updateUserProfile(userId, parseResult.data);
+  const updated = await updateUserProfile(userId, user.email, parseResult.data);
   
   // Regenerate embeddings asynchronously (don't block response)
   upsertProfileEmbedding(userId).catch(err => 
