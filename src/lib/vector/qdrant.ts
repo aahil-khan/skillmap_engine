@@ -44,6 +44,11 @@ export async function initQdrantCollections() {
       });
       
       await qdrant.createPayloadIndex(COLLECTIONS.USER_PROFILES, {
+        field_name: 'is_active',
+        field_schema: 'bool',
+      });
+      
+      await qdrant.createPayloadIndex(COLLECTIONS.USER_PROFILES, {
         field_name: 'experience_level',
         field_schema: 'keyword',
       });

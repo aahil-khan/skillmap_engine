@@ -18,8 +18,9 @@ export const ProfileUpdateSchema = z.object({
   preferences: z.object({
     available_days: z.array(z.string()).optional(),
     preferred_time_slots: z.array(z.string()).optional(),
-    communication_style: z.string().optional(),
-    is_searchable: z.boolean().optional(),
+    preferred_collaboration_types: z.array(z.string()).optional(),
+    communication_preferences: z.array(z.string()).optional(),
+    is_accepting_requests: z.boolean().optional(),
   }).optional(),
 });
 

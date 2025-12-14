@@ -2,6 +2,7 @@ import { supabase } from '../../lib/db/supabase.js';
 import { NotFoundError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
 import type { ProfileUpdate, PeerPreferences } from '../../schemas/profile.js';
+import { upsertProfileEmbedding } from './embedder.js';
 
 /**
  * Get complete user profile with related data
@@ -101,8 +102,7 @@ export async function updateUserProfile(userId: string, email: string, updates: 
         user_id: userId,
         original_goal: goal.original_goal,
         refined_goal: goal.refined_goal || goal.original_goal,
-        target_proficiency: goal.target_proficiency || 'intermediate',
-        timeframe: goal.timeframe || 'ongoing',
+        target_timeline: goal.timeframe || 'ongoing',
         status: 'active' as const,
       }));
       
@@ -121,6 +121,11 @@ export async function updateUserProfile(userId: string, email: string, updates: 
   if (preferences) {
     await updatePeerPreferences(userId, preferences as any);
   }
+  
+  // Generate and store embeddings asynchronously (don't block response)
+  upsertProfileEmbedding(userId).catch(error => {
+    logger.error('Embedding generation failed (async)', { userId, error: error.message });
+  });
   
   logger.info('Profile updated', { userId, fields: Object.keys(updates), profile_completed });
   return data;
