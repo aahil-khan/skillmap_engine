@@ -3,11 +3,12 @@ import { createEmbedding } from '../../lib/llm/openai.js';
 import logger from '../../utils/logger.js';
 
 export interface ScoringFactors {
-  shared_skills_score: number; // 30%
-  complementary_skills_score: number; // 25%
+  shared_skills_score: number; // 35% (adjusted for domain)
+  complementary_skills_score: number; // 20%
   goal_alignment_score: number; // 20%
   experience_compatibility_score: number; // 15%
-  availability_match_score: number; // 10%
+  availability_match_score: number; // 5%
+  domain_alignment_score: number; // 10% (NEW: same domain preference)
 }
 
 export interface MatchScore {
@@ -42,24 +43,65 @@ export async function calculateMatchScore(
 ): Promise<MatchScore> {
   logger.debug('Calculating match score', { userId, candidateId });
   
-  // Fetch user and candidate skills
+  // Fetch user and candidate skills with value_weight from taxonomy
   const { data: userSkills } = await supabase
     .from('user_skills')
-    .select('skill_id, skill_level')
+    .select('skill_id, skill_level, skills_taxonomy!inner(value_weight, category)')
     .eq('user_id', userId);
   
   const { data: candidateSkills } = await supabase
     .from('user_skills')
-    .select('skill_id, skill_level')
+    .select('skill_id, skill_level, skills_taxonomy!inner(value_weight, category)')
     .eq('user_id', candidateId);
   
-  const userSkillIds = new Set(userSkills?.map(s => s.skill_id) || []);
-  const candidateSkillIds = new Set(candidateSkills?.map(s => s.skill_id) || []);
+  // Create maps for skill level and weight comparison
+  const userSkillMap = new Map(
+    userSkills?.map(s => [
+      s.skill_id,
+      { level: s.skill_level, weight: s.skills_taxonomy.value_weight, category: s.skills_taxonomy.category }
+    ]) || []
+  );
+  const candidateSkillMap = new Map(
+    candidateSkills?.map(s => [
+      s.skill_id,
+      { level: s.skill_level, weight: s.skills_taxonomy.value_weight, category: s.skills_taxonomy.category }
+    ]) || []
+  );
   
-  // ===== 1. SHARED SKILLS (30%) =====
-  const sharedSkills = [...userSkillIds].filter(id => candidateSkillIds.has(id));
-  const shared_skills_score = userSkillIds.size > 0
-    ? Math.min((sharedSkills.length / userSkillIds.size) * 100, 100)
+  // ===== 1. SHARED SKILLS (40%) with level similarity =====
+  const skillLevelValues: Record<string, number> = {
+    'beginner': 1,
+    'intermediate': 2,
+    'advanced': 3,
+  };
+  
+  let totalSkillScore = 0;
+  let sharedSkillCount = 0;
+  
+  for (const [skillId, userSkillData] of userSkillMap.entries()) {
+    if (candidateSkillMap.has(skillId)) {
+      sharedSkillCount++;
+      const candidateSkillData = candidateSkillMap.get(skillId)!;
+      const userLevelNum = skillLevelValues[userSkillData.level] || 2;
+      const candidateLevelNum = skillLevelValues[candidateSkillData.level] || 2;
+      
+      // Base score from level similarity
+      const levelDiff = Math.abs(userLevelNum - candidateLevelNum);
+      const levelSimilarity = 1 - (levelDiff * 0.25); // 0.75 for 1 level, 0.5 for 2 levels
+      
+      // Boost score for higher-level skills (advanced-advanced counts more)
+      const avgLevel = (userLevelNum + candidateLevelNum) / 2;
+      const levelBoost = 0.5 + (avgLevel / 6); // 0.67 for beginner-beginner, 1.0 for advanced-advanced
+      
+      // Apply skill value weight (high-value skills count more)
+      const valueWeight = userSkillData.weight || 1.0;
+      
+      totalSkillScore += levelSimilarity * levelBoost * valueWeight;
+    }
+  }
+  
+  const shared_skills_score = userSkillMap.size > 0
+    ? Math.min((totalSkillScore / userSkillMap.size) * 100, 100)
     : 0;
   
   // ===== 2. COMPLEMENTARY SKILLS (25%) =====
@@ -150,13 +192,59 @@ export async function calculateMatchScore(
     }
   }
   
+  // ===== 6. DOMAIN ALIGNMENT (10%) =====
+  // Calculate domain/category alignment from skills
+  const userCategories = new Set<string>();
+  const candidateCategories = new Set<string>();
+  
+  for (const [_, skillData] of userSkillMap.entries()) {
+    userCategories.add(skillData.category);
+  }
+  for (const [_, skillData] of candidateSkillMap.entries()) {
+    candidateCategories.add(skillData.category);
+  }
+  
+  // Calculate overlap in skill domains
+  const categoryOverlap = [...userCategories].filter(c => candidateCategories.has(c)).length;
+  const totalCategories = Math.max(userCategories.size, candidateCategories.size);
+  
+  // Check for complementary domains (e.g., Frontend + Backend, DevOps + Cloud)
+  const complementaryPairs = [
+    ['Frontend Frameworks', 'Backend Frameworks'],
+    ['Frontend Frameworks', 'Databases'],
+    ['Backend Frameworks', 'Databases'],
+    ['DevOps & Cloud', 'Backend Frameworks'],
+    ['Data Science & ML', 'Programming Languages'],
+  ];
+  
+  let hasComplementaryDomain = false;
+  for (const [cat1, cat2] of complementaryPairs) {
+    if (
+      (userCategories.has(cat1) && candidateCategories.has(cat2)) ||
+      (userCategories.has(cat2) && candidateCategories.has(cat1))
+    ) {
+      hasComplementaryDomain = true;
+      break;
+    }
+  }
+  
+  let domain_alignment_score = totalCategories > 0
+    ? (categoryOverlap / totalCategories) * 100
+    : 50;
+  
+  // Boost if complementary domains detected
+  if (hasComplementaryDomain) {
+    domain_alignment_score = Math.min(domain_alignment_score + 15, 100);
+  }
+  
   // ===== CALCULATE WEIGHTED TOTAL =====
   const total_score =
-    shared_skills_score * 0.30 +
-    complementary_skills_score * 0.25 +
+    shared_skills_score * 0.35 +           // Adjusted for domain factor
+    complementary_skills_score * 0.20 +
     goal_alignment_score * 0.20 +
     experience_compatibility_score * 0.15 +
-    availability_match_score * 0.10;
+    availability_match_score * 0.05 +
+    domain_alignment_score * 0.10;         // NEW: domain alignment bonus
   
   return {
     total_score: Math.round(total_score * 10) / 10, // Round to 1 decimal
@@ -166,6 +254,7 @@ export async function calculateMatchScore(
       goal_alignment_score: Math.round(goal_alignment_score),
       experience_compatibility_score: Math.round(experience_compatibility_score),
       availability_match_score: Math.round(availability_match_score),
+      domain_alignment_score: Math.round(domain_alignment_score),
     },
   };
 }

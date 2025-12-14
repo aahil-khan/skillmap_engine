@@ -4,6 +4,7 @@ export interface CoreSkill {
   subcategory?: string;
   aliases: string[];
   job_demand_frequency: number;
+  value_weight: number; // 0.7 = basic, 1.0 = standard, 1.5 = high-value
   commonly_paired_with?: string[];
   prerequisites?: string[];
 }
@@ -16,6 +17,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['JS', 'ECMAScript', 'ES6', 'ES2015'],
     job_demand_frequency: 95,
+    value_weight: 1.0,
     commonly_paired_with: ['React', 'Node.js', 'TypeScript'],
   },
   {
@@ -23,6 +25,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['TS'],
     job_demand_frequency: 85,
+    value_weight: 1.5,
     commonly_paired_with: ['JavaScript', 'React', 'Node.js'],
     prerequisites: ['JavaScript'],
   },
@@ -31,6 +34,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['Python3', 'Python 3'],
     job_demand_frequency: 92,
+    value_weight: 1.0,
     commonly_paired_with: ['Django', 'Flask', 'Machine Learning'],
   },
   {
@@ -38,6 +42,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['Java SE', 'Java EE'],
     job_demand_frequency: 88,
+    value_weight: 1.0,
     commonly_paired_with: ['Spring Boot', 'Maven', 'Gradle'],
   },
   {
@@ -45,6 +50,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['CPP', 'C Plus Plus'],
     job_demand_frequency: 70,
+    value_weight: 1.0,
     commonly_paired_with: ['C', 'Linux', 'Game Development'],
   },
   {
@@ -52,6 +58,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['Golang'],
     job_demand_frequency: 65,
+    value_weight: 1.5,
     commonly_paired_with: ['Docker', 'Kubernetes', 'Microservices'],
   },
   {
@@ -59,6 +66,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: [],
     job_demand_frequency: 55,
+    value_weight: 1.5,
     commonly_paired_with: ['WebAssembly', 'Systems Programming'],
   },
   {
@@ -66,6 +74,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: [],
     job_demand_frequency: 60,
+    value_weight: 1.0,
     commonly_paired_with: ['Ruby on Rails', 'PostgreSQL'],
   },
   {
@@ -73,6 +82,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: [],
     job_demand_frequency: 72,
+    value_weight: 1.0,
     commonly_paired_with: ['Laravel', 'MySQL', 'WordPress'],
   },
   {
@@ -80,6 +90,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: ['C Sharp', 'CSharp'],
     job_demand_frequency: 75,
+    value_weight: 1.0,
     commonly_paired_with: ['.NET', 'ASP.NET', 'Azure'],
   },
   {
@@ -87,6 +98,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: [],
     job_demand_frequency: 58,
+    value_weight: 1.0,
     commonly_paired_with: ['iOS Development', 'Xcode', 'UIKit'],
   },
   {
@@ -94,6 +106,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Programming Languages',
     aliases: [],
     job_demand_frequency: 62,
+    value_weight: 1.0,
     commonly_paired_with: ['Android Development', 'Java', 'Spring Boot'],
   },
 
@@ -103,6 +116,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Frontend',
     aliases: ['ReactJS', 'React.js'],
     job_demand_frequency: 90,
+    value_weight: 1.5,
     commonly_paired_with: ['JavaScript', 'TypeScript', 'Next.js'],
     prerequisites: ['JavaScript'],
   },
@@ -111,6 +125,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Frontend',
     aliases: ['AngularJS', 'Angular 2+'],
     job_demand_frequency: 75,
+    value_weight: 1.0,
     commonly_paired_with: ['TypeScript', 'RxJS', 'NgRx'],
     prerequisites: ['TypeScript'],
   },
@@ -118,6 +133,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     canonical_name: 'Vue.js',
     category: 'Frontend',
     aliases: ['Vue', 'VueJS'],
+    value_weight: 1.0,
     job_demand_frequency: 72,
     commonly_paired_with: ['JavaScript', 'Vuex', 'Nuxt.js'],
     prerequisites: ['JavaScript'],
@@ -127,6 +143,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Frontend',
     aliases: ['NextJS'],
     job_demand_frequency: 80,
+    value_weight: 1.5,
     commonly_paired_with: ['React', 'TypeScript', 'Vercel'],
     prerequisites: ['React'],
   },
@@ -135,6 +152,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Frontend',
     aliases: ['SvelteKit'],
     job_demand_frequency: 45,
+    value_weight: 1.0,
     commonly_paired_with: ['JavaScript', 'TypeScript'],
   },
 
@@ -143,6 +161,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     canonical_name: 'Node.js',
     category: 'Backend',
     aliases: ['NodeJS', 'Node'],
+    value_weight: 0.7,
     job_demand_frequency: 88,
     commonly_paired_with: ['JavaScript', 'Express.js', 'TypeScript'],
     prerequisites: ['JavaScript'],
@@ -152,6 +171,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: ['Express', 'ExpressJS'],
     job_demand_frequency: 82,
+    value_weight: 0.7,
     commonly_paired_with: ['Node.js', 'JavaScript', 'MongoDB'],
     prerequisites: ['Node.js'],
   },
@@ -160,6 +180,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: [],
     job_demand_frequency: 70,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'PostgreSQL', 'REST API'],
     prerequisites: ['Python'],
   },
@@ -168,6 +189,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: [],
     job_demand_frequency: 65,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'SQLAlchemy', 'REST API'],
     prerequisites: ['Python'],
   },
@@ -176,6 +198,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: ['Spring'],
     job_demand_frequency: 80,
+    value_weight: 1.5,
     commonly_paired_with: ['Java', 'Maven', 'PostgreSQL'],
     prerequisites: ['Java'],
   },
@@ -184,6 +207,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: [],
     job_demand_frequency: 60,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'Pydantic', 'REST API'],
     prerequisites: ['Python'],
   },
@@ -192,6 +216,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Backend',
     aliases: ['Rails', 'RoR'],
     job_demand_frequency: 58,
+    value_weight: 1.0,
     commonly_paired_with: ['Ruby', 'PostgreSQL', 'REST API'],
     prerequisites: ['Ruby'],
   },
@@ -201,6 +226,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     canonical_name: 'PostgreSQL',
     category: 'Databases',
     aliases: ['Postgres', 'psql'],
+    value_weight: 1.0,
     job_demand_frequency: 85,
     commonly_paired_with: ['SQL', 'Node.js', 'Django'],
   },
@@ -209,6 +235,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Databases',
     aliases: ['Mongo'],
     job_demand_frequency: 78,
+    value_weight: 1.0,
     commonly_paired_with: ['Node.js', 'Express.js', 'Mongoose'],
   },
   {
@@ -216,6 +243,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Databases',
     aliases: [],
     job_demand_frequency: 82,
+    value_weight: 1.0,
     commonly_paired_with: ['SQL', 'PHP', 'Laravel'],
   },
   {
@@ -223,6 +251,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Databases',
     aliases: [],
     job_demand_frequency: 75,
+    value_weight: 1.0,
     commonly_paired_with: ['Node.js', 'Caching', 'Session Management'],
   },
   {
@@ -230,6 +259,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Databases',
     aliases: ['Structured Query Language'],
     job_demand_frequency: 90,
+    value_weight: 1.0,
     commonly_paired_with: ['PostgreSQL', 'MySQL', 'Data Analysis'],
   },
 
@@ -239,6 +269,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'DevOps',
     aliases: [],
     job_demand_frequency: 88,
+    value_weight: 1.0,
     commonly_paired_with: ['Kubernetes', 'CI/CD', 'Microservices'],
   },
   {
@@ -246,6 +277,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'DevOps',
     aliases: ['K8s'],
     job_demand_frequency: 80,
+    value_weight: 1.5,
     commonly_paired_with: ['Docker', 'Cloud Computing', 'Microservices'],
     prerequisites: ['Docker'],
   },
@@ -254,6 +286,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Cloud',
     aliases: ['Amazon Web Services'],
     job_demand_frequency: 92,
+    value_weight: 1.5,
     commonly_paired_with: ['EC2', 'S3', 'Lambda'],
   },
   {
@@ -261,6 +294,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Cloud',
     aliases: ['Microsoft Azure'],
     job_demand_frequency: 75,
+    value_weight: 1.5,
     commonly_paired_with: ['.NET', 'C#', 'Cloud Computing'],
   },
   {
@@ -268,6 +302,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Cloud',
     aliases: ['Google Cloud Platform', 'Google Cloud'],
     job_demand_frequency: 68,
+    value_weight: 1.5,
     commonly_paired_with: ['Cloud Computing', 'Kubernetes', 'BigQuery'],
   },
   {
@@ -275,6 +310,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'DevOps',
     aliases: [],
     job_demand_frequency: 70,
+    value_weight: 1.5,
     commonly_paired_with: ['AWS', 'Infrastructure as Code', 'Cloud Computing'],
   },
   {
@@ -282,6 +318,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'DevOps',
     aliases: ['Continuous Integration', 'Continuous Deployment'],
     job_demand_frequency: 85,
+    value_weight: 1.0,
     commonly_paired_with: ['Jenkins', 'GitHub Actions', 'Docker'],
   },
 
@@ -291,6 +328,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Data Science',
     aliases: ['ML'],
     job_demand_frequency: 82,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'TensorFlow', 'PyTorch'],
   },
   {
@@ -298,6 +336,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Data Science',
     aliases: ['TF'],
     job_demand_frequency: 70,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'Machine Learning', 'Deep Learning'],
     prerequisites: ['Python', 'Machine Learning'],
   },
@@ -306,6 +345,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Data Science',
     aliases: [],
     job_demand_frequency: 68,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'Machine Learning', 'Deep Learning'],
     prerequisites: ['Python', 'Machine Learning'],
   },
@@ -314,6 +354,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Data Science',
     aliases: [],
     job_demand_frequency: 75,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'NumPy', 'Data Analysis'],
     prerequisites: ['Python'],
   },
@@ -322,6 +363,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Data Science',
     aliases: [],
     job_demand_frequency: 72,
+    value_weight: 1.0,
     commonly_paired_with: ['Python', 'Pandas', 'Data Science'],
     prerequisites: ['Python'],
   },
@@ -332,6 +374,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Tools',
     aliases: ['Version Control'],
     job_demand_frequency: 95,
+    value_weight: 0.7,
     commonly_paired_with: ['GitHub', 'GitLab', 'CI/CD'],
   },
   {
@@ -339,6 +382,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Tools',
     aliases: [],
     job_demand_frequency: 90,
+    value_weight: 0.7,
     commonly_paired_with: ['Git', 'CI/CD', 'Version Control'],
     prerequisites: ['Git'],
   },
@@ -347,6 +391,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'API',
     aliases: ['RESTful API', 'REST'],
     job_demand_frequency: 88,
+    value_weight: 0.7,
     commonly_paired_with: ['Node.js', 'Express.js', 'Django'],
   },
   {
@@ -354,6 +399,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'API',
     aliases: [],
     job_demand_frequency: 65,
+    value_weight: 1.0,
     commonly_paired_with: ['React', 'Apollo', 'Node.js'],
   },
   {
@@ -361,6 +407,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Build Tools',
     aliases: [],
     job_demand_frequency: 60,
+    value_weight: 1.0,
     commonly_paired_with: ['JavaScript', 'React', 'Babel'],
   },
   {
@@ -368,6 +415,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Build Tools',
     aliases: [],
     job_demand_frequency: 55,
+    value_weight: 0.7,
     commonly_paired_with: ['React', 'Vue.js', 'JavaScript'],
   },
   {
@@ -375,6 +423,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Frontend',
     aliases: ['HTML5'],
     job_demand_frequency: 95,
+    value_weight: 0.7,
     commonly_paired_with: ['CSS', 'JavaScript', 'Web Development'],
   },
   {
@@ -382,6 +431,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Styling',
     aliases: ['CSS3'],
     job_demand_frequency: 95,
+    value_weight: 0.7,
     commonly_paired_with: ['HTML', 'JavaScript', 'Sass'],
   },
   {
@@ -389,6 +439,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Styling',
     aliases: ['SCSS'],
     job_demand_frequency: 68,
+    value_weight: 1.0,
     commonly_paired_with: ['CSS', 'HTML', 'Frontend'],
     prerequisites: ['CSS'],
   },
@@ -397,6 +448,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Styling',
     aliases: ['Tailwind'],
     job_demand_frequency: 75,
+    value_weight: 0.7,
     commonly_paired_with: ['React', 'Next.js', 'CSS'],
     prerequisites: ['CSS'],
   },
@@ -405,6 +457,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Testing',
     aliases: [],
     job_demand_frequency: 70,
+    value_weight: 1.0,
     commonly_paired_with: ['JavaScript', 'React', 'Testing'],
   },
   {
@@ -412,6 +465,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Testing',
     aliases: ['Unit Testing', 'Integration Testing'],
     job_demand_frequency: 85,
+    value_weight: 1.0,
     commonly_paired_with: ['Jest', 'Pytest', 'CI/CD'],
   },
   {
@@ -419,6 +473,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Operating Systems',
     aliases: ['Unix'],
     job_demand_frequency: 85,
+    value_weight: 0.7,
     commonly_paired_with: ['Bash', 'DevOps', 'Servers'],
   },
   {
@@ -426,6 +481,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Scripting',
     aliases: ['Shell Scripting'],
     job_demand_frequency: 75,
+    value_weight: 0.7,
     commonly_paired_with: ['Linux', 'DevOps', 'Automation'],
   },
   {
@@ -433,6 +489,7 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Web Servers',
     aliases: [],
     job_demand_frequency: 65,
+    value_weight: 1.0,
     commonly_paired_with: ['Linux', 'Docker', 'Load Balancing'],
   },
   {
@@ -440,12 +497,14 @@ export const CORE_SKILLS: CoreSkill[] = [
     category: 'Architecture',
     aliases: [],
     job_demand_frequency: 78,
+    value_weight: 1.5,
     commonly_paired_with: ['Docker', 'Kubernetes', 'REST API'],
   },
   {
     canonical_name: 'Agile',
     category: 'Methodologies',
     aliases: ['Scrum', 'Agile Development'],
+    value_weight: 1.0,
     job_demand_frequency: 80,
     commonly_paired_with: ['Jira', 'Project Management', 'Software Development'],
   },

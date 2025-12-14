@@ -17,6 +17,7 @@ export async function seedSkillTaxonomy() {
       subcategory: skill.subcategory,
       aliases: skill.aliases,
       job_demand_frequency: skill.job_demand_frequency,
+      value_weight: skill.value_weight,
       commonly_paired_with: skill.commonly_paired_with || [],
       prerequisites: skill.prerequisites || [],
     }));
