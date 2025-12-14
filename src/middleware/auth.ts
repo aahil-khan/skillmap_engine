@@ -1,5 +1,5 @@
 import { Context, Next } from 'hono';
-import { supabase } from '../lib/db/supabase.js';
+import { supabaseAuth } from '../lib/db/supabaseAuth.js';
 import { AuthenticationError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
 
@@ -13,7 +13,7 @@ export async function authenticate(c: Context, next: Next) {
   const token = authHeader.substring(7);
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
 
     if (error || !user) {
       throw new AuthenticationError('Invalid token');

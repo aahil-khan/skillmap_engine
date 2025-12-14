@@ -1,0 +1,6 @@
+-- Disable RLS for development since we use service role key with middleware auth
+ALTER TABLE resumes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_skills DISABLE ROW LEVEL SECURITY;
+ALTER TABLE work_experience DISABLE ROW LEVEL SECURITY;
+ALTER TABLE projects DISABLE ROW LEVEL SECURITY;
+ALTER TABLE education DISABLE ROW LEVEL SECURITY;

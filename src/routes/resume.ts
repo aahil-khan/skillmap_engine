@@ -7,6 +7,12 @@ const app = new Hono();
 
 app.post('/upload', authenticate, async (c) => {
   const userId = c.get('userId');
+  const authHeader = c.req.header('Authorization');
+  const userToken = authHeader?.substring(7); // Remove 'Bearer '
+  
+  if (!userToken) {
+    throw new ValidationError('Missing authentication token');
+  }
   
   // Get file from multipart form
   const body = await c.req.parseBody();
@@ -28,7 +34,7 @@ app.post('/upload', authenticate, async (c) => {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   
-  const result = await processResume(userId, buffer, file.name);
+  const result = await processResume(userId, buffer, file.name, userToken);
   
   return c.json({
     message: 'Resume processed successfully',

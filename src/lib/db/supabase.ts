@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import logger from '../../utils/logger.js';
 
-const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Use service role key to bypass RLS for server-side operations; fall back to secret key if service key missing
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
 if (!process.env.SUPABASE_URL || !supabaseKey) {
   throw new Error('Missing Supabase credentials');
@@ -14,6 +15,12 @@ export const supabase = createClient(
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    global: {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     },
   }
 );

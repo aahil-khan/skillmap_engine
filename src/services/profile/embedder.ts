@@ -94,6 +94,7 @@ export async function generateProfileEmbeddings(userId: string): Promise<UserVec
 
 /**
  * Extract top 3 skill categories from user skills
+ * "Others" category is deprioritized to come after known categories
  */
 async function extractPrimaryCategories(userId: string): Promise<string[]> {
   const { data: skills } = await supabase
@@ -112,11 +113,22 @@ async function extractPrimaryCategories(userId: string): Promise<string[]> {
     return acc;
   }, {} as Record<string, number>);
   
-  // Sort by count and take top 3
-  return Object.entries(categoryCounts)
+  // Separate "Others" from known categories
+  const othersCount = categoryCounts['Others'] || 0;
+  delete categoryCounts['Others'];
+  
+  // Sort known categories by count and take top 3
+  const knownCategories = Object.entries(categoryCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([category]) => category);
+  
+  // Add "Others" only if we have less than 3 known categories
+  if (knownCategories.length < 3 && othersCount > 0) {
+    knownCategories.push('Others');
+  }
+  
+  return knownCategories;
 }
 
 /**
