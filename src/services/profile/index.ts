@@ -26,7 +26,8 @@ export async function getUserProfile(userId: string) {
     { data: workExperience },
     { data: projects },
     { data: education },
-    { data: learningGoals }
+    { data: learningGoals },
+    { data: preferences }
   ] = await Promise.all([
     supabase
       .from('user_skills')
@@ -41,7 +42,8 @@ export async function getUserProfile(userId: string) {
     supabase.from('work_experience').select('*').eq('user_id', userId),
     supabase.from('projects').select('*').eq('user_id', userId),
     supabase.from('education').select('*').eq('user_id', userId),
-    supabase.from('learning_goals').select('*').eq('user_id', userId)
+    supabase.from('learning_goals').select('*').eq('user_id', userId),
+    supabase.from('peer_preferences').select('*').eq('user_id', userId).single()
   ]);
   
   logger.info('Profile retrieved', { userId });
@@ -52,7 +54,8 @@ export async function getUserProfile(userId: string) {
     work_experience: workExperience || [],
     projects: projects || [],
     education: education || [],
-    learning_goals: learningGoals || []
+    learning_goals: learningGoals || [],
+    preferences: preferences || null
   };
 }
 

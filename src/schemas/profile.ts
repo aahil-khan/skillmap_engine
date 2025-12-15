@@ -30,6 +30,7 @@ export const PeerPreferencesSchema = z.object({
   preferred_collaboration_types: z.array(z.enum(['project', 'study', 'mentor', 'learn'])).optional(),
   communication_preferences: z.array(z.string()).optional(),
   is_accepting_requests: z.boolean().optional(),
+  matching_preference: z.enum(['mentor', 'peer', 'mentee', 'balanced']).optional(),
 });
 
 export type LearningGoal = z.infer<typeof LearningGoalSchema>;

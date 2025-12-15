@@ -17,6 +17,55 @@ export interface MatchScore {
 }
 
 /**
+ * Get scoring weights based on user's matching preference
+ */
+function getWeightsByPreference(preference: string | null): Record<string, number> {
+  switch (preference) {
+    case 'mentor':
+      // Looking to learn - prioritize complementary skills
+      return {
+        shared_skills: 0.25,
+        complementary_skills: 0.35,
+        goal_alignment: 0.20,
+        experience: 0.10,
+        availability: 0.05,
+        domain: 0.05,
+      };
+    case 'peer':
+      // Looking for equals - prioritize shared skills and experience match
+      return {
+        shared_skills: 0.45,
+        complementary_skills: 0.10,
+        goal_alignment: 0.20,
+        experience: 0.15,
+        availability: 0.05,
+        domain: 0.05,
+      };
+    case 'mentee':
+      // Looking to teach - prioritize when they can help others
+      return {
+        shared_skills: 0.30,
+        complementary_skills: 0.25,
+        goal_alignment: 0.25,
+        experience: 0.10,
+        availability: 0.05,
+        domain: 0.05,
+      };
+    case 'balanced':
+    default:
+      // Balanced mix
+      return {
+        shared_skills: 0.35,
+        complementary_skills: 0.20,
+        goal_alignment: 0.20,
+        experience: 0.15,
+        availability: 0.05,
+        domain: 0.05,
+      };
+  }
+}
+
+/**
  * Calculate cosine similarity between two vectors
  */
 function cosineSimilarity(vec1: number[], vec2: number[]): number {
@@ -43,28 +92,71 @@ export async function calculateMatchScore(
 ): Promise<MatchScore> {
   logger.debug('Calculating match score', { userId, candidateId });
   
+  // Fetch user's matching preference
+  const { data: userPreference } = await supabase
+    .from('peer_preferences')
+    .select('matching_preference')
+    .eq('user_id', userId)
+    .single();
+  
+  const weights = getWeightsByPreference(userPreference?.matching_preference || 'balanced');
+  logger.debug('Using weights based on preference', { 
+    preference: userPreference?.matching_preference || 'balanced',
+    weights 
+  });
+  
   // Fetch user and candidate skills with value_weight from taxonomy
-  const { data: userSkills } = await supabase
+  const { data: userSkills, error: userSkillsError } = await supabase
     .from('user_skills')
-    .select('skill_id, skill_level, skills_taxonomy!inner(value_weight, category)')
+    .select(`
+      skill_id,
+      skill_level,
+      skills_taxonomy (
+        value_weight,
+        category
+      )
+    `)
     .eq('user_id', userId);
   
-  const { data: candidateSkills } = await supabase
+  if (userSkillsError) {
+    logger.error('Failed to fetch user skills', { error: userSkillsError });
+  }
+  
+  const { data: candidateSkills, error: candidateSkillsError } = await supabase
     .from('user_skills')
-    .select('skill_id, skill_level, skills_taxonomy!inner(value_weight, category)')
+    .select(`
+      skill_id,
+      skill_level,
+      skills_taxonomy (
+        value_weight,
+        category
+      )
+    `)
     .eq('user_id', candidateId);
+  
+  if (candidateSkillsError) {
+    logger.error('Failed to fetch candidate skills', { error: candidateSkillsError });
+  }
   
   // Create maps for skill level and weight comparison
   const userSkillMap = new Map(
     userSkills?.map(s => [
       s.skill_id,
-      { level: s.skill_level, weight: s.skills_taxonomy.value_weight, category: s.skills_taxonomy.category }
+      { 
+        level: s.skill_level, 
+        weight: s.skills_taxonomy?.value_weight || 1.0, 
+        category: s.skills_taxonomy?.category || 'Unknown'
+      }
     ]) || []
   );
   const candidateSkillMap = new Map(
     candidateSkills?.map(s => [
       s.skill_id,
-      { level: s.skill_level, weight: s.skills_taxonomy.value_weight, category: s.skills_taxonomy.category }
+      { 
+        level: s.skill_level, 
+        weight: s.skills_taxonomy?.value_weight || 1.0, 
+        category: s.skills_taxonomy?.category || 'Unknown'
+      }
     ]) || []
   );
   
@@ -76,13 +168,19 @@ export async function calculateMatchScore(
   };
   
   let totalSkillScore = 0;
+  let maxPossibleScore = 0;
   let sharedSkillCount = 0;
   
   for (const [skillId, userSkillData] of userSkillMap.entries()) {
+    // Calculate max possible score for this skill (perfect match)
+    const userLevelNum = skillLevelValues[userSkillData.level] || 2;
+    const levelBoost = 0.5 + (userLevelNum / 3); // Max boost for user's actual level
+    const valueWeight = userSkillData.weight || 1.0;
+    maxPossibleScore += levelBoost * valueWeight; // Perfect similarity = 1.0
+    
     if (candidateSkillMap.has(skillId)) {
       sharedSkillCount++;
       const candidateSkillData = candidateSkillMap.get(skillId)!;
-      const userLevelNum = skillLevelValues[userSkillData.level] || 2;
       const candidateLevelNum = skillLevelValues[candidateSkillData.level] || 2;
       
       // Base score from level similarity
@@ -94,14 +192,13 @@ export async function calculateMatchScore(
       const levelBoost = 0.5 + (avgLevel / 6); // 0.67 for beginner-beginner, 1.0 for advanced-advanced
       
       // Apply skill value weight (high-value skills count more)
-      const valueWeight = userSkillData.weight || 1.0;
-      
       totalSkillScore += levelSimilarity * levelBoost * valueWeight;
     }
   }
   
-  const shared_skills_score = userSkillMap.size > 0
-    ? Math.min((totalSkillScore / userSkillMap.size) * 100, 100)
+  // Normalize by max possible score (prevents dilution from having many skills)
+  const shared_skills_score = maxPossibleScore > 0
+    ? Math.min((totalSkillScore / maxPossibleScore) * 100, 100)
     : 0;
   
   // ===== 2. COMPLEMENTARY SKILLS (25%) =====
@@ -204,47 +301,38 @@ export async function calculateMatchScore(
     candidateCategories.add(skillData.category);
   }
   
-  // Calculate overlap in skill domains
+  // Calculate category overlap
   const categoryOverlap = [...userCategories].filter(c => candidateCategories.has(c)).length;
-  const totalCategories = Math.max(userCategories.size, candidateCategories.size);
+  const userCategoryCount = userCategories.size;
   
-  // Check for complementary domains (e.g., Frontend + Backend, DevOps + Cloud)
-  const complementaryPairs = [
-    ['Frontend Frameworks', 'Backend Frameworks'],
-    ['Frontend Frameworks', 'Databases'],
-    ['Backend Frameworks', 'Databases'],
-    ['DevOps & Cloud', 'Backend Frameworks'],
-    ['Data Science & ML', 'Programming Languages'],
-  ];
+  // Check for complementary domains (full-stack is valuable!)
+  const webDevCategories = ['Frontend Frameworks', 'Backend Frameworks', 'Databases'];
+  const hasWebDevOverlap = [...userCategories].some(c => webDevCategories.includes(c)) &&
+                          [...candidateCategories].some(c => webDevCategories.includes(c));
   
-  let hasComplementaryDomain = false;
-  for (const [cat1, cat2] of complementaryPairs) {
-    if (
-      (userCategories.has(cat1) && candidateCategories.has(cat2)) ||
-      (userCategories.has(cat2) && candidateCategories.has(cat1))
-    ) {
-      hasComplementaryDomain = true;
-      break;
-    }
+  // Base score: reward any category overlap generously
+  let domain_alignment_score = 50; // Neutral base
+  
+  if (categoryOverlap > 0) {
+    // Strong bonus for shared categories
+    domain_alignment_score = 70 + (categoryOverlap * 15); // 85 for 1 match, 100 for 2+
   }
   
-  let domain_alignment_score = totalCategories > 0
-    ? (categoryOverlap / totalCategories) * 100
-    : 50;
-  
-  // Boost if complementary domains detected
-  if (hasComplementaryDomain) {
-    domain_alignment_score = Math.min(domain_alignment_score + 15, 100);
+  // Extra bonus if both are in web dev ecosystem (Frontend/Backend/Database)
+  if (hasWebDevOverlap) {
+    domain_alignment_score = Math.min(domain_alignment_score + 20, 100);
   }
+  
+  domain_alignment_score = Math.min(domain_alignment_score, 100);
   
   // ===== CALCULATE WEIGHTED TOTAL =====
   const total_score =
-    shared_skills_score * 0.35 +           // Adjusted for domain factor
-    complementary_skills_score * 0.20 +
-    goal_alignment_score * 0.20 +
-    experience_compatibility_score * 0.15 +
-    availability_match_score * 0.05 +
-    domain_alignment_score * 0.10;         // NEW: domain alignment bonus
+    shared_skills_score * weights.shared_skills +
+    complementary_skills_score * weights.complementary_skills +
+    goal_alignment_score * weights.goal_alignment +
+    experience_compatibility_score * weights.experience +
+    availability_match_score * weights.availability +
+    domain_alignment_score * weights.domain;
   
   return {
     total_score: Math.round(total_score * 10) / 10, // Round to 1 decimal
