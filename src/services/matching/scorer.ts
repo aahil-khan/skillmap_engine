@@ -66,6 +66,45 @@ function getWeightsByPreference(preference: string | null): Record<string, numbe
 }
 
 /**
+ * Calculate compatibility between user and candidate preferences
+ * Returns a multiplier (0.3 to 1.0) to adjust the total score
+ */
+function getPreferenceCompatibility(userPref: string | null, candidatePref: string | null): number {
+  const userPreference = userPref || 'balanced';
+  const candidatePreference = candidatePref || 'balanced';
+
+  // Compatibility matrix
+  const compatibilityMap: Record<string, Record<string, number>> = {
+    mentor: {
+      mentee: 1.0,  // Perfect: student + teacher
+      peer: 0.85,   // Good: peer can help while collaborating
+      mentor: 0.3,  // Bad: both need help
+      balanced: 0.75, // Neutral
+    },
+    peer: {
+      peer: 1.0,    // Perfect: equals collaborating
+      mentor: 0.85, // Good: can teach while learning
+      mentee: 0.85, // Good: can learn while teaching
+      balanced: 0.75, // Neutral
+    },
+    mentee: {
+      mentor: 1.0,  // Perfect: teacher + student
+      peer: 0.85,   // Good: teaching peer
+      mentee: 0.5,  // Neutral-low: nobody needs help
+      balanced: 0.75, // Neutral
+    },
+    balanced: {
+      mentor: 0.75,
+      peer: 0.75,
+      mentee: 0.75,
+      balanced: 0.75, // All neutral
+    },
+  };
+
+  return compatibilityMap[userPreference]?.[candidatePreference] || 0.75;
+}
+
+/**
  * Calculate cosine similarity between two vectors
  */
 function cosineSimilarity(vec1: number[], vec2: number[]): number {
@@ -99,10 +138,24 @@ export async function calculateMatchScore(
     .eq('user_id', userId)
     .single();
   
+  // Fetch candidate's matching preference
+  const { data: candidatePreference } = await supabase
+    .from('peer_preferences')
+    .select('matching_preference')
+    .eq('user_id', candidateId)
+    .single();
+  
   const weights = getWeightsByPreference(userPreference?.matching_preference || 'balanced');
-  logger.debug('Using weights based on preference', { 
-    preference: userPreference?.matching_preference || 'balanced',
-    weights 
+  const compatibilityMultiplier = getPreferenceCompatibility(
+    userPreference?.matching_preference || null,
+    candidatePreference?.matching_preference || null
+  );
+  
+  logger.debug('Using weights and compatibility based on preferences', { 
+    userPreference: userPreference?.matching_preference || 'balanced',
+    candidatePreference: candidatePreference?.matching_preference || 'balanced',
+    weights,
+    compatibilityMultiplier
   });
   
   // Fetch user and candidate skills with value_weight from taxonomy
@@ -326,13 +379,16 @@ export async function calculateMatchScore(
   domain_alignment_score = Math.min(domain_alignment_score, 100);
   
   // ===== CALCULATE WEIGHTED TOTAL =====
-  const total_score =
+  const base_score =
     shared_skills_score * weights.shared_skills +
     complementary_skills_score * weights.complementary_skills +
     goal_alignment_score * weights.goal_alignment +
     experience_compatibility_score * weights.experience +
     availability_match_score * weights.availability +
     domain_alignment_score * weights.domain;
+  
+  // Apply preference compatibility multiplier
+  const total_score = base_score * compatibilityMultiplier;
   
   return {
     total_score: Math.round(total_score * 10) / 10, // Round to 1 decimal

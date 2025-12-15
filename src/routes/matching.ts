@@ -27,16 +27,23 @@ interface MatchResult {
 }
 
 /**
- * GET /peer/matches
+ * GET /peer/matches?page=1&limit=20
  * Find and rank peer matches for current user
+ * Supports pagination: page (default 1) and limit (default 20, max 100)
  */
 app.get('/', authenticate, async (c) => {
   const userId = c.get('userId');
   
+  // Parse pagination params
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '20', 10)));
+  const offset = (page - 1) * limit;
+  
   console.log('=== MATCHING REQUEST DEBUG ===');
   console.log('User ID:', userId);
+  console.log('Pagination:', { page, limit, offset });
   
-  logger.info('Finding peer matches', { userId });
+  logger.info('Finding peer matches', { userId, page, limit });
   
   try {
     // Check cache
