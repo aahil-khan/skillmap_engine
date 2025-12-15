@@ -174,7 +174,7 @@ export async function upsertProfileEmbedding(userId: string) {
         experience_level: profile?.experience_level || 'entry',
         primary_categories: primaryCategories,
         has_leetcode: !!leetcode,
-        is_active: profile?.is_active ?? false,
+        is_active: profile?.is_active ?? true,
         is_searchable: profile?.is_searchable ?? true,
         last_active: profile?.last_active_at || new Date().toISOString(),
       },

@@ -66,32 +66,54 @@ export async function updateUserProfile(userId: string, email: string, updates: 
   // Separate learning_goals and preferences from profile updates
   const { learning_goals, preferences, ...profileUpdates } = updates;
   
-  // Check profile completion criteria
-  const hasDisplayName = profileUpdates.display_name || (await supabase.from('user_profiles').select('display_name').eq('user_id', userId).single()).data?.display_name;
-  const hasBio = profileUpdates.bio || (await supabase.from('user_profiles').select('bio').eq('user_id', userId).single()).data?.bio;
-  const hasExperience = profileUpdates.experience_level || (await supabase.from('user_profiles').select('experience_level').eq('user_id', userId).single()).data?.experience_level;
-  const hasGoals = learning_goals && learning_goals.length > 0;
+  // Only update if there are profile fields to update
+  let data;
+  let profile_completed = false;
   
-  const profile_completed = !!(hasDisplayName && hasBio && hasExperience && hasGoals);
-  
-  // Upsert user profile
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .upsert({
-      user_id: userId,
-      email: email,
+  if (Object.keys(profileUpdates).length > 0) {
+    // Check profile completion criteria
+    const hasDisplayName = profileUpdates.display_name || (await supabase.from('user_profiles').select('display_name').eq('user_id', userId).single()).data?.display_name;
+    const hasBio = profileUpdates.bio || (await supabase.from('user_profiles').select('bio').eq('user_id', userId).single()).data?.bio;
+    const hasExperience = profileUpdates.experience_level || (await supabase.from('user_profiles').select('experience_level').eq('user_id', userId).single()).data?.experience_level;
+    const hasGoals = learning_goals && learning_goals.length > 0;
+    
+    profile_completed = !!(hasDisplayName && hasBio && hasExperience && hasGoals);
+    
+    // Update user profile (use update not upsert to avoid null constraint issues)
+    const updateData = {
       ...profileUpdates,
       profile_completed,
       updated_at: new Date().toISOString(),
-    }, {
-      onConflict: 'user_id',
-    })
-    .select()
-    .single();
-  
-  if (error) {
-    logger.error('Profile update failed', { userId, error: error.message });
-    throw error;
+    };
+    
+    const result = await supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('user_id', userId)
+      .select()
+      .single();
+    
+    if (result.error) {
+      logger.error('Profile update failed', { userId, error: result.error.message });
+      throw result.error;
+    }
+    
+    data = result.data;
+  } else {
+    // If no profile updates, just fetch current profile
+    const result = await supabase
+      .from('user_profiles')
+      .select()
+      .eq('user_id', userId)
+      .single();
+    
+    if (result.error) {
+      logger.error('Profile fetch failed', { userId, error: result.error.message });
+      throw result.error;
+    }
+    
+    data = result.data;
+    profile_completed = data.profile_completed || false;
   }
   
   // Handle learning goals if provided
@@ -123,6 +145,29 @@ export async function updateUserProfile(userId: string, email: string, updates: 
   // Handle preferences if provided
   if (preferences) {
     await updatePeerPreferences(userId, preferences as any);
+  }
+  
+  // If is_searchable or is_active changed, update Qdrant payload immediately
+  if ('is_searchable' in profileUpdates || 'is_active' in profileUpdates) {
+    // Update Qdrant payload for these critical fields
+    const { qdrant, COLLECTIONS } = await import('../../lib/vector/qdrant.js');
+    
+    try {
+      await qdrant.setPayload(COLLECTIONS.USER_PROFILES, {
+        points: [userId],
+        payload: {
+          is_searchable: data.is_searchable ?? true,
+          is_active: data.is_active ?? true,
+        },
+      });
+      logger.info('Updated Qdrant payload for visibility fields', { 
+        userId, 
+        is_searchable: data.is_searchable, 
+        is_active: data.is_active 
+      });
+    } catch (error: any) {
+      logger.error('Failed to update Qdrant payload', { userId, error: error.message });
+    }
   }
   
   // Generate and store embeddings asynchronously (don't block response)

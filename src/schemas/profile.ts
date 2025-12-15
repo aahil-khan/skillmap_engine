@@ -13,7 +13,8 @@ export const ProfileUpdateSchema = z.object({
   location: z.string().max(100).optional(),
   timezone: z.string().optional(),
   experience_level: z.enum(['entry', '1-3years', '3-5years', '5+years']).optional(),
-  is_searchable: z.boolean().optional(),
+  is_searchable: z.union([z.boolean(), z.string().transform(s => s === 'true')]).optional(),
+  is_active: z.union([z.boolean(), z.string().transform(s => s === 'true')]).optional(),
   learning_goals: z.array(LearningGoalSchema).optional(),
   preferences: z.object({
     available_days: z.array(z.string()).optional(),
