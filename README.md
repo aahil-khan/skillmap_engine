@@ -1,231 +1,184 @@
 # SkillMap Engine API
 
-A comprehensive skill analysis and peer-learning platform that processes resumes, analyzes skill gaps, and provides personalized learning recommendations.
+Production refactor (Phase 1 implemented): deterministic resume parsing, vector-based skill normalization, multi-vector profile embeddings, and fast peer matching with caching.
 
-## 🏗️ Architecture
+## Tech Stack
+
+- **API**: TypeScript + Hono (Node)
+- **Auth + DB**: Supabase (Postgres + JWT)
+- **Vector DB**: Qdrant Cloud
+- **Cache**: Upstash Redis
+- **LLM**: OpenAI (`gpt-4o-mini` structured extraction, `text-embedding-3-small` embeddings)
+- **Testing**: Vitest
+- **Logging**: Pino
+
+## Repo Layout (Current)
+
+High-level overview (see `src/` for the real implementation):
 
 ```
-skillmap-engine/
-├── index.js                 # Main API server
-├── config.js               # Configuration (OpenAI, Qdrant)
-├── skill_taxonomy.js       # Skill taxonomy definitions
-├── package.json
-├── services/               # Business logic
-│   ├── resumeService.js    # Resume processing
-│   ├── userProfileService.js # User profile management
-│   ├── skillGapService.js  # Skill gap analysis
-│   └── skillSearchService.js # Skill similarity search
-├── utils/                  # Shared utilities
-│   ├── pdfParser.js        # PDF parsing utilities
-│   └── vectorStore.js      # Vector database utilities
-├── scripts/                # Utility scripts
-│   └── seedTaxonomy.js     # Seed skill taxonomy
-└── data/                   # Generated data files
+src/
+  index.ts              # Entry point (starts the server)
+  server.ts             # Hono app (routes/middleware)
+  routes/               # HTTP routes
+  services/             # Domain services (resume, taxonomy, profile, matching)
+  lib/                  # Clients (Supabase, Qdrant, OpenAI, Redis)
+  schemas/              # Zod schemas
+  data/                 # Curated core skills
+  middleware/           # Auth + error handling
+  utils/                # Logger + errors
+scripts/                # SQL + seed/maintenance scripts
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 1) Install
 
-2. **Set up environment variables:**
-   ```bash
-   # Create .env file
-   OPENAI_API_KEY=your_openai_api_key
-   QDRANT_URL=your_qdrant_url
-   QDRANT_API_KEY=your_qdrant_api_key
-   PORT=3000
-   ```
+```bash
+npm install
+```
 
-3. **Seed the skill taxonomy:**
-   ```bash
-   npm run seed-taxonomy
-   ```
+### 2) Configure environment
 
-4. **Start the server:**
-   ```bash
-   npm start
-   ```
+Create a `.env` file (use `.env.example` as your source of truth). Required variables are:
 
-## 📋 API Endpoints
+```bash
+# SERVER
+NODE_ENV=development
+PORT=5005
+CORS_ORIGIN=http://localhost:3000
 
-### Health Check
+# OPENAI
+OPENAI_API_KEY=...
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_HIGH_QUALITY_MODEL=gpt-4o
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+# QDRANT
+QDRANT_URL=...
+QDRANT_API_KEY=...
+
+# SUPABASE
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+# UPSTASH REDIS
+REDIS_URL=...
+REDIS_TOKEN=...
+```
+
+### 3) Ensure database schema
+
+Use the SQL scripts in `scripts/` (Supabase SQL editor):
+
+- `scripts/create-schema.sql`
+- `scripts/enable-rls.sql` / `scripts/disable-rls.sql` (as needed)
+
+### 4) Seed skill taxonomy
+
+```bash
+npm run seed-taxonomy
+```
+
+### 5) Run dev server
+
+```bash
+npm run dev
+```
+
+Health check:
+
 ```http
 GET /health
 ```
-Returns API status and timestamp.
 
-### Resume Processing
+## API Endpoints (Phase 1)
+
+All endpoints require `Authorization: Bearer <supabase_jwt>` unless stated otherwise.
+
+### Health
+
 ```http
-POST /upload-resume
+GET /health
+```
+
+### Resume
+
+```http
+POST /api/resume
 Content-Type: multipart/form-data
+Authorization: Bearer <token>
 
-# Body: PDF file with key 'resume'
+# Body: PDF file
 ```
-Processes uploaded resume and extracts structured profile data.
 
-### User Profile Management
+What it does:
+
+- Extracts text from PDF (`pdf-parse`)
+- Deterministic structured extraction (Instructor + Zod, `temperature=0`, `seed=42`)
+- Two-pass skill extraction (as-is) → vector normalization via Qdrant
+- Writes resume + normalized entities to Supabase
+- Updates profile embeddings asynchronously
+- Caches by resume content hash (SHA-256)
+
+### Profile
+
 ```http
-POST /user-profile
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "technical_skills": [...],
-  "inferred_areas_of_strength": [...],
-  "goal": "Become a full-stack developer",
-  "experience": [...],
-  "projects": [...]
-}
+GET /api/profile
+PATCH /api/profile
+PATCH /api/profile/preferences
+Authorization: Bearer <token>
 ```
-Creates or updates user profile with vector embeddings.
 
-### Skill Gap Analysis
+### Matching
+
 ```http
-POST /analyze-skill-gaps
-Content-Type: application/json
-
-{
-  "name": "John Doe"
-}
+GET /api/matches?page=1&limit=20
+Authorization: Bearer <token>
 ```
-Analyzes skill gaps based on user's goal and provides AI-generated recommendations.
 
-### Skill Search
+Notes:
+
+- Qdrant search uses the user's `weighted_avg` vector
+- Multi-factor scoring includes skill value weights and preference compatibility
+- Results are cached (15 minutes) and paginated from cached scored candidates
+
+### Test Routes
+
 ```http
-POST /search-skills
-Content-Type: application/json
-
-{
-  "query": "machine learning",
-  "limit": 10
-}
-```
-Searches for similar skills using semantic similarity.
-
-## 🔧 Services Overview
-
-### Resume Service (`services/resumeService.js`)
-- Processes PDF resumes
-- Extracts structured data using OpenAI
-- Maps skills to taxonomy
-- Saves structured profiles
-
-### User Profile Service (`services/userProfileService.js`)
-- Creates/updates user profiles
-- Generates comprehensive profile embeddings
-- Manages vector database operations
-- Handles profile text formatting
-
-### Skill Gap Service (`services/skillGapService.js`)
-- Analyzes skill gaps based on user goals
-- Matches goals to relevant skill categories
-- Provides detailed gap analysis
-- Generates AI-powered summaries and recommendations
-
-### Skill Search Service (`services/skillSearchService.js`)
-- Semantic skill similarity search
-- Category-based skill filtering
-- Vector similarity scoring
-
-## 🛠️ Utilities
-
-### PDF Parser (`utils/pdfParser.js`)
-- Extracts text from PDF files
-- Handles file validation
-- Error handling for corrupted files
-
-### Vector Store (`utils/vectorStore.js`)
-- Qdrant collection management
-- Index creation and management
-- Collection utilities (create, delete, info)
-
-## 📊 Data Flow
-
-1. **Resume Upload** → PDF parsing → OpenAI structuring → Profile creation
-2. **Profile Creation** → Text formatting → Embedding generation → Vector storage
-3. **Skill Analysis** → Goal matching → Category analysis → Gap identification → AI summary
-4. **Skill Search** → Query embedding → Vector similarity → Ranked results
-
-## 🔒 Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for embeddings and chat | Yes |
-| `QDRANT_URL` | Qdrant vector database URL | Yes |
-| `QDRANT_API_KEY` | Qdrant API key | Yes |
-| `PORT` | Server port (default: 3000) | No |
-| `NODE_ENV` | Environment (development/production) | No |
-
-## 📝 Example Responses
-
-### Skill Gap Analysis Response
-```json
-{
-  "success": true,
-  "user": "John Doe",
-  "analysis": [
-    {
-      "detected_category": "Web Development",
-      "matched_taxonomy_category": "Web Development", 
-      "confidence": 0.85,
-      "similarity": 1.0,
-      "skills": {
-        "gaps": [
-          {
-            "name": "Next.js",
-            "description": "Building full-stack React apps...",
-            "priority": "high"
-          }
-        ],
-        "present": [...],
-        "needs_improvement": [...]
-      }
-    }
-  ],
-  "summary": "Based on your goal to 'Become a full-stack developer'...",
-  "categories_analyzed": 1,
-  "user_goal": "Become a full-stack developer"
-}
+GET /api/test
 ```
 
-## 🚨 Error Handling
+## Scripts
 
-All endpoints return consistent error responses:
-```json
-{
-  "error": "Error description",
-  "details": "Detailed error message"
-}
-```
+Common scripts:
 
-Common HTTP status codes:
-- `400`: Bad Request (missing parameters)
-- `404`: Not Found (user/resource not found)
-- `500`: Internal Server Error
+- `npm run dev` (TypeScript watch mode)
+- `npm run build` / `npm run start`
+- `npm test` / `npm run test:ui`
+- `npm run seed-taxonomy`
+- `npm run clear-taxonomy`
 
-## 🧪 Development
+Useful one-offs:
 
-- **Logs**: Detailed console logging for debugging
-- **File Output**: Analysis results saved to files for inspection
-- **Error Handling**: Comprehensive error catching and reporting
-- **Validation**: Input validation on all endpoints
+- `src/scripts/seed-test-users.ts` (creates test users)
+- `src/scripts/update-matching-preferences.ts` (sets mentor/peer/mentee/balanced)
 
-## 📈 Performance Considerations
+## Caching (Phase 1)
 
-- **Caching**: Consider implementing Redis for frequently accessed data
-- **Batch Processing**: Resume processing handles large files efficiently
-- **Vector Search**: Optimized similarity search with thresholds
-- **Concurrent Processing**: Multiple skill analysis in parallel
+Cache keys and TTLs are managed in `src/lib/cache/redis.ts`. Current high-level TTLs:
 
-## 🔄 Migration from Old Structure
+- Resume parsing: 30 days (by content hash)
+- Skill normalization: 7 days
+- Match candidates: 15 minutes
+- Profile: 15 minutes
 
-The refactored codebase consolidates:
-- `profiler.js` → `services/resumeService.js`
-- `seed_user_profile.js` → `services/userProfileService.js`
-- `find_gaps.js` → `services/skillGapService.js`
-- `seed_taxonomy.js` → `scripts/seedTaxonomy.js`
+## Docs
 
-All functionality is now accessible through the single `index.js` API server.
+- `REFACTOR_MASTER_PLAN.md` (architecture plan)
+- `DOCS/PHASE_1_IMPLEMENTATION_SUMMARY.md` (what Phase 1 actually implements)
+
+## Error Handling
+
+Errors are normalized via custom error classes in `src/utils/errors.ts` and returned as JSON from the global error handler.
