@@ -6,8 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SECRET_KEY // Fallback to secret key
 );
 
-const email = 'test3@test.com';
-const password = '12345'; // Set this password for your test user
+const email = 'dave.junior@test.com';
+const password = 'TestPass123!'; // Set this password for your test user
 
 console.log('Attempting to sign in...');
 console.log('Email:', email);
