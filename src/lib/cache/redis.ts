@@ -17,6 +17,7 @@ export const CacheKeys = {
   userProfile: (userId: string) => `profile:${userId}`,
   skillNormalization: (skillName: string) => `skill:norm:${skillName}`,
   leetcodeProfile: (username: string) => `leetcode:${username}`,
+  jobSkills: (userId: string, goalId: string) => `jobs:skills:${userId}:${goalId}`,
 } as const;
 
 // TTL constants (in seconds)
@@ -26,6 +27,7 @@ export const CacheTTL = {
   SKILL: 7 * 24 * 60 * 60, // 7 days
   LEETCODE: 24 * 60 * 60, // 24 hours
   PROFILE: 15 * 60, // 15 minutes
+  JOB_MARKET: 7 * 24 * 60 * 60, // 7 days
 } as const;
 
 // Helper: Get with JSON parse
@@ -41,6 +43,12 @@ export async function setJSON<T>(key: string, value: T, ttl?: number): Promise<v
   } else {
     await redis.set(key, JSON.stringify(value));
   }
+}
+
+// Helper: Delete key
+export async function deleteKey(key: string): Promise<void> {
+  await redis.del(key);
+  logger.debug('Redis key deleted', { key });
 }
 
 // Health check
