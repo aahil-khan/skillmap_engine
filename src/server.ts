@@ -12,6 +12,7 @@ import profileRoutes from './routes/profile.js';
 import matchingRoutes from './routes/matching.js';
 import jobsRoutes from './routes/jobs.js';
 import gapsRoutes from './routes/gaps.js';
+import skillsRoutes from './routes/skills.js';
 
 const app = new Hono();
 
@@ -26,6 +27,7 @@ app.route('/profile', profileRoutes);
 app.route('/peer/matches', matchingRoutes);
 app.route('/api/jobs', jobsRoutes);
 app.route('/api/gaps', gapsRoutes);
+app.route('/skills', skillsRoutes);
 
 // Health check
 app.get('/health', async (c) => {

@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "SkillMap Engine - Phase 1 Complete Flow",
-    "description": "End-to-end testing: Sign up → Resume Upload → Profile Creation → Peer Matching",
+    "name": "SkillMap Engine - Phase 1 + Phase 2 (Features 1-2)",
+    "description": "Complete API testing: Authentication → Resume → Profile → Matching → Job Market → Skill Gaps",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -22,6 +22,12 @@
                   "    pm.environment.set('user_email', jsonData.user.email);",
                   "    console.log('✅ User signed up successfully');",
                   "    console.log('User ID:', jsonData.user.id);",
+                  "    console.log('\\n⚠️ NEXT STEPS:');",
+                  "    console.log('1. Upload resume');",
+                  "    console.log('2. Update skills proficiency');",
+                  "    console.log('3. Complete profile with goals');",
+                  "    console.log('4. Create a learning goal (manually in Supabase for now)');",
+                  "    console.log('5. Set goal_id environment variable');",
                   "} else {",
                   "    console.log('❌ Sign up failed:', pm.response.json());",
                   "}"
@@ -377,7 +383,318 @@
       ]
     },
     {
-      "name": "6. Additional Utilities",
+      "name": "6. Phase 2 - Job Market Integration",
+      "item": [
+        {
+          "name": "Analyze Job Market (User-Paste)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Job market analyzed');",
+                  "    console.log('Source:', jsonData.source);",
+                  "    console.log('Total Jobs:', jsonData.totalJobs);",
+                  "    console.log('Skills Found:', jsonData.skills.length);",
+                  "    console.log('Cached:', jsonData.cached);",
+                  "    ",
+                  "    if (jsonData.skills.length > 0) {",
+                  "        console.log('\\nTop 5 Skills:');",
+                  "        jsonData.skills.slice(0, 5).forEach((s, i) => {",
+                  "            console.log(`  ${i+1}. ${s.skill} - ${Math.round(s.frequency * 100)}% frequency`);",
+                  "        });",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Analysis failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalId\": \"{{goal_id}}\",\n  \"targetRole\": \"Frontend Developer\",\n  \"jobDescriptions\": [\n    \"We are seeking a Senior Frontend Developer with 5+ years experience. Must have: React, TypeScript, Next.js, Tailwind CSS. Nice to have: GraphQL, AWS.\",\n    \"Frontend Engineer needed. Required skills: React, JavaScript, CSS, HTML, Git. Experience with Redux and Testing (Jest) preferred.\",\n    \"Looking for a React Developer. Key skills: React, TypeScript, Node.js, MongoDB, Docker. Familiarity with CI/CD pipelines.\",\n    \"Senior Frontend Role: React, Vue.js, TypeScript, Webpack, RESTful APIs. 3+ years experience required.\",\n    \"Frontend Developer position. Tech stack: React, TypeScript, Material-UI, Firebase, Agile methodologies.\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "analyze"]
+            },
+            "description": "Analyze skill frequencies from user-pasted job descriptions. Paste 3-10 job descriptions from Indeed, LinkedIn, etc. Results cached for 7 days."
+          },
+          "response": []
+        },
+        {
+          "name": "Analyze Job Market (Taxonomy Fallback)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Using taxonomy fallback');",
+                  "    console.log('Source:', jsonData.source);",
+                  "    console.log('Skills:', jsonData.skills.length);",
+                  "    console.log('Message:', jsonData.message);",
+                  "} else {",
+                  "    console.log('❌ Analysis failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalId\": \"{{goal_id}}\",\n  \"targetRole\": \"Backend Developer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "analyze"]
+            },
+            "description": "When no job descriptions provided, falls back to Phase 1 taxonomy (59 curated skills with demand frequencies)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Job Descriptions",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalId\": \"{{goal_id}}\",\n  \"targetRole\": \"Full Stack Developer\",\n  \"jobDescriptions\": [\n    \"Senior Full Stack Developer. Required: React, Node.js, PostgreSQL, Docker, Kubernetes.\",\n    \"Full Stack Engineer: TypeScript, Express, MongoDB, AWS, Terraform.\",\n    \"Backend-heavy full stack role: Python, Django, React, Redis, Docker.\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "analyze"]
+            },
+            "description": "Update job analysis with new descriptions. Clears cache and re-analyzes."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Job Market Cache",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "{{goal_id}}"]
+            },
+            "description": "Clear cached job market analysis for a specific goal. Next request will re-analyze."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Phase 2 - Skill Gap Analysis",
+      "item": [
+        {
+          "name": "Analyze Skill Gaps",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Gap analysis complete');",
+                  "    console.log('Summary:', jsonData.summary);",
+                  "    console.log('\\nGaps:', jsonData.analysis.gaps.length, 'skills');",
+                  "    console.log('Improvements:', jsonData.analysis.improvements.length, 'skills');",
+                  "    console.log('Strengths:', jsonData.analysis.strengths.length, 'skills');",
+                  "    ",
+                  "    if (jsonData.analysis.gaps.length > 0) {",
+                  "        console.log('\\nTop Gaps:');",
+                  "        jsonData.analysis.gaps.slice(0, 5).forEach((g, i) => {",
+                  "            console.log(`  ${i+1}. ${g.skill} - ${g.priority} priority (${Math.round(g.required_frequency * 100)}% demand)`);",
+                  "        });",
+                  "    }",
+                  "    ",
+                  "    console.log('\\n⏳ Learning path is being generated...');",
+                  "    console.log('Check GET /api/gaps/:goalId/path in 10-15 seconds');",
+                  "} else {",
+                  "    console.log('❌ Gap analysis failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalId\": \"{{goal_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaps/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaps", "analyze"]
+            },
+            "description": "Analyze skill gaps by comparing user skills vs job market data. Requires Feature 1 (job market analysis) to be run first. Triggers async learning path generation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Learning Path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Learning path retrieved');",
+                  "    console.log('Version:', jsonData.version);",
+                  "    console.log('Total Weeks:', jsonData.path.total_estimated_weeks);",
+                  "    console.log('Steps:', jsonData.path.steps.length);",
+                  "    ",
+                  "    console.log('\\nLearning Steps:');",
+                  "    jsonData.path.steps.forEach((step, i) => {",
+                  "        console.log(`\\n${i+1}. ${step.title} (${step.estimated_weeks} weeks)`);",
+                  "        console.log(`   Skills: ${step.skills_covered.join(', ')}`);",
+                  "        console.log(`   Resources: ${step.resources.length} free resources`);",
+                  "        if (step.project_idea) {",
+                  "            console.log(`   Project: ${step.project_idea}`);",
+                  "        }",
+                  "    });",
+                  "    ",
+                  "    console.log('\\nKey Milestones:');",
+                  "    jsonData.path.key_milestones.forEach((m, i) => {",
+                  "        console.log(`  ${i+1}. ${m}`);",
+                  "    });",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('⏳ Learning path not ready yet');",
+                  "    console.log('Run POST /api/gaps/analyze first, then wait 10-15 seconds');",
+                  "} else {",
+                  "    console.log('❌ Failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/gaps/{{goal_id}}/path",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaps", "{{goal_id}}", "path"]
+            },
+            "description": "Retrieve generated learning path for a goal. Returns 404 if path not generated yet (wait 10-15 seconds after gap analysis)."
+          },
+          "response": []
+        },
+        {
+          "name": "Regenerate Learning Path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Learning path regenerated');",
+                  "    console.log('New Version:', jsonData.version);",
+                  "    console.log('Total Weeks:', jsonData.path.total_estimated_weeks);",
+                  "    console.log('Steps:', jsonData.path.steps.length);",
+                  "} else {",
+                  "    console.log('❌ Regeneration failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gaps/{{goal_id}}/regenerate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gaps", "{{goal_id}}", "regenerate"]
+            },
+            "description": "Regenerate learning path after user adds new skills. Increments version number. Synchronous operation (takes 15-30 seconds)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Additional Utilities",
       "item": [
         {
           "name": "Health Check",
@@ -394,7 +711,37 @@
           "response": []
         },
         {
-          "name": "Search Skills (Taxonomy)",
+          "name": "Search Skills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Skills found:', jsonData.count);",
+                  "    console.log('Query:', jsonData.query);",
+                  "    ",
+                  "    if (jsonData.results.length > 0) {",
+                  "        console.log('\\nResults:');",
+                  "        jsonData.results.forEach((skill, i) => {",
+                  "            console.log(`${i+1}. ${skill.canonical_name} (${skill.category})`);",
+                  "            console.log(`   ID: ${skill.id}`);",
+                  "            if (skill.aliases && skill.aliases.length > 0) {",
+                  "                console.log(`   Aliases: ${skill.aliases.join(', ')}`);",
+                  "            }",
+                  "        });",
+                  "        ",
+                  "        console.log('\\n💡 Copy the skill ID to use in PATCH /profile/skills');",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Search failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -404,21 +751,55 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/skills/search?query=javascript&limit=10",
+              "raw": "{{base_url}}/skills/search?query=react&limit=10",
               "host": ["{{base_url}}"],
               "path": ["skills", "search"],
               "query": [
                 {
                   "key": "query",
-                  "value": "javascript"
+                  "value": "react",
+                  "description": "Search term (case-insensitive)"
                 },
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "description": "Max results (default: 20)"
                 }
               ]
             },
-            "description": "Search the skill taxonomy. Useful for finding skill IDs when manually adding skills."
+            "description": "Search skills taxonomy by name or alias. Returns skill IDs needed for adding skills to profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Skills",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/skills?limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["skills"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Programming Languages",
+                  "description": "Filter by category (optional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Max results (default: 100)"
+                }
+              ]
+            },
+            "description": "Get all skills in taxonomy, optionally filtered by category. Useful for dropdowns."
           },
           "response": []
         }
