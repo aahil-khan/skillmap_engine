@@ -42,7 +42,8 @@ export async function generateLearningPath(
   userId: string,
   goalId: string,
   gaps: SkillGap[],
-  strengths: SkillGap[]
+  strengths: SkillGap[],
+  version: number = 1
 ): Promise<any> {
   try {
     // 1. Fetch user context
@@ -132,7 +133,7 @@ Generate a step-by-step learning path.`;
         user_id: userId,
         goal_id: goalId,
         path_data: path,
-        version: 1,
+        version: version,
       })
       .select()
       .single();

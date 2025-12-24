@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "SkillMap Engine - Phase 1 + Phase 2 (Features 1-2)",
-    "description": "Complete API testing: Authentication → Resume → Profile → Matching → Job Market → Skill Gaps",
+    "name": "SkillMap Engine - Phase 2 (Features 1-3)",
+    "description": "Complete API testing: Authentication → Resume → Profile → Matching → Job Market → Skill Gaps → LeetCode",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -800,6 +800,170 @@
               ]
             },
             "description": "Get all skills in taxonomy, optionally filtered by category. Useful for dropdowns."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. LeetCode Pattern Analysis (Feature 3)",
+      "item": [
+        {
+          "name": "Sync LeetCode Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ LeetCode Profile Synced Successfully\\n');",
+                  "    ",
+                  "    const profile = jsonData.profile;",
+                  "    console.log('📊 Profile Stats:');",
+                  "    console.log(`   Total Solved: ${profile.totalSolved}`);",
+                  "    console.log(`   Easy: ${profile.easySolved} | Medium: ${profile.mediumSolved} | Hard: ${profile.hardSolved}`);",
+                  "    console.log(`   Ranking: ${profile.ranking}`);",
+                  "    console.log(`   Acceptance Rate: ${profile.acceptanceRate}%`);",
+                  "    ",
+                  "    const patterns = jsonData.patterns;",
+                  "    console.log('\\n💪 Strengths:');",
+                  "    patterns.strength_patterns.slice(0, 3).forEach((s, i) => {",
+                  "        console.log(`   ${i+1}. ${s.pattern} (${s.proficiency}) - ${s.problem_count} problems`);",
+                  "    });",
+                  "    ",
+                  "    console.log('\\n⚠️ Weaknesses:');",
+                  "    patterns.weak_patterns.slice(0, 3).forEach((w, i) => {",
+                  "        console.log(`   ${i+1}. ${w.pattern} (${w.proficiency})`);",
+                  "    });",
+                  "    ",
+                  "    console.log('\\n🎯 Recommended Focus Areas:');",
+                  "    patterns.recommended_focus.forEach((f, i) => {",
+                  "        console.log(`   ${i+1}. ${f}`);",
+                  "    });",
+                  "    ",
+                  "    console.log('\\n📈 Overall:');",
+                  "    console.log(`   Comfort Level: ${patterns.comfort_level}`);",
+                  "    console.log(`   Consistency Score: ${patterns.consistency_score}/100`);",
+                  "    console.log(`   Growth Trend: ${patterns.growth_trend}`);",
+                  "} else {",
+                  "    console.log('❌ Sync failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"your_leetcode_username\",\n  \"force\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/sync",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "sync"]
+            },
+            "description": "First-time sync or manual re-sync of LeetCode profile. Set force=true to clear cache."
+          },
+          "response": []
+        },
+        {
+          "name": "Get LeetCode Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "profile"]
+            },
+            "description": "Get cached profile with smart sync. Auto re-syncs if >24h old."
+          },
+          "response": []
+        },
+        {
+          "name": "Re-Analyze Patterns",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "analyze"]
+            },
+            "description": "Re-analyze patterns without re-fetching profile. Use after solving new problems."
+          },
+          "response": []
+        },
+        {
+          "name": "Find Study Partners",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log(`✅ Found ${jsonData.count} Study Partners\\n`);",
+                  "    ",
+                  "    jsonData.matches.forEach((match, i) => {",
+                  "        console.log(`${i+1}. User ID: ${match.user_id}`);",
+                  "        console.log(`   Similarity Score: ${match.score.toFixed(2)}`);",
+                  "        console.log(`   Strengths: ${match.patterns.strengths.slice(0, 3).join(', ')}`);",
+                  "        console.log(`   Comfort Level: ${match.patterns.comfort_level}`);",
+                  "        console.log('');",
+                  "    });",
+                  "} else {",
+                  "    console.log('❌ Search failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/study-partners?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "study-partners"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Max results (default: 10)"
+                }
+              ]
+            },
+            "description": "Find users with complementary skills (your weaknesses = their strengths)."
           },
           "response": []
         }

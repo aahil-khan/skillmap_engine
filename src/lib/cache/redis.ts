@@ -16,7 +16,16 @@ export const CacheKeys = {
   matchCandidates: (userId: string) => `match:candidates:${userId}`,
   userProfile: (userId: string) => `profile:${userId}`,
   skillNormalization: (skillName: string) => `skill:norm:${skillName}`,
-  leetcodeProfile: (username: string) => `leetcode:${username}`,
+  
+  // LeetCode cache keys
+  leetcodeProfile: (username: string) => `leetcode:profile:${username}`,
+  leetcodeStats: (username: string) => `leetcode:stats:${username}`,
+  leetcodeSubmissions: (username: string, limit: number) => `leetcode:submissions:${username}:${limit}`,
+  leetcodeSkillStats: (username: string) => `leetcode:skillStats:${username}`,
+  leetcodeActivity: (username: string) => `leetcode:activity:${username}`,
+  leetcodeProblem: (titleSlug: string) => `leetcode:problem:${titleSlug}`,
+  
+  // Job market cache
   jobSkills: (userId: string, goalId: string) => `jobs:skills:${userId}:${goalId}`,
 } as const;
 
@@ -33,15 +42,29 @@ export const CacheTTL = {
 // Helper: Get with JSON parse
 export async function getJSON<T>(key: string): Promise<T | null> {
   const data = await redis.get(key);
-  return data ? (data as T) : null;
+  if (!data) return null;
+
+  // Upstash may return a string; normalize to object
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as T;
+    } catch (err) {
+      logger.warn('Failed to parse cached JSON', { key, error: (err as Error).message });
+      // @ts-expect-error allow string fallback if parsing fails
+      return data as T;
+    }
+  }
+
+  return data as T;
 }
 
 // Helper: Set with JSON stringify
 export async function setJSON<T>(key: string, value: T, ttl?: number): Promise<void> {
+  const payload = JSON.stringify(value);
   if (ttl) {
-    await redis.set(key, JSON.stringify(value), { ex: ttl });
+    await redis.set(key, payload, { ex: ttl });
   } else {
-    await redis.set(key, JSON.stringify(value));
+    await redis.set(key, payload);
   }
 }
 

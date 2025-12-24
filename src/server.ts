@@ -13,6 +13,7 @@ import matchingRoutes from './routes/matching.js';
 import jobsRoutes from './routes/jobs.js';
 import gapsRoutes from './routes/gaps.js';
 import skillsRoutes from './routes/skills.js';
+import leetcodeRoutes from './routes/leetcode.js';
 
 const app = new Hono();
 
@@ -28,6 +29,7 @@ app.route('/peer/matches', matchingRoutes);
 app.route('/api/jobs', jobsRoutes);
 app.route('/api/gaps', gapsRoutes);
 app.route('/skills', skillsRoutes);
+app.route('/api/leetcode', leetcodeRoutes);
 
 // Health check
 app.get('/health', async (c) => {

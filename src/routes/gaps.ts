@@ -112,7 +112,7 @@ app.post('/:goalId/regenerate', authenticate, async (c) => {
   
   // Generate new path synchronously (user is explicitly requesting it)
   try {
-    const path = await generateLearningPath(userId, goalId, gaps, strengths);
+    const path = await generateLearningPath(userId, goalId, gaps, strengths, nextVersion);
     
     return c.json({
       goalId,
