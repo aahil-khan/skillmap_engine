@@ -27,20 +27,17 @@ app.use('*', honoLogger());
 app.use('*', cors());
 
 // Routes
-app.route('/resume', resumeRoutes);
-app.route('/test', testRoutes);
-app.route('/profile', profileRoutes);
-app.route('/peer/matches', matchingRoutes);
+app.route('/api/resume', resumeRoutes);
+app.route('/api/test', testRoutes);
+app.route('/api/profile', profileRoutes);
+app.route('/api/peer/matches', matchingRoutes);
 app.route('/api/jobs', jobsRoutes);
 app.route('/api/gaps', gapsRoutes);
-app.route('/skills', skillsRoutes);
+app.route('/api/skills', skillsRoutes);
 app.route('/api/leetcode', leetcodeRoutes);
 app.route('/api/feedback', feedbackRoutes);
 app.route('/api/connections', connectionsRoutes);
-app.route('/peer/matches/:candidateId', connectionsRoutes); // Swipe actions
-app.route('/api/messages', messagesRoutes); // Message unread count
-// Message sending/receiving is nested under connections
-app.route('/api/connections', messagesRoutes); // Includes /:connectionId/messages
+app.route('/api/messages', messagesRoutes);
 app.route('/api/notifications', notificationsRoutes);
 
 // Health check

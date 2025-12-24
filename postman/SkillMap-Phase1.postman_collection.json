@@ -160,7 +160,7 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/resume/upload",
+              "raw": "{{base_url}}/api/resume/upload",
               "host": ["{{base_url}}"],
               "path": ["resume", "upload"]
             },
@@ -179,7 +179,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/resume",
+              "raw": "{{base_url}}/api/resume",
               "host": ["{{base_url}}"],
               "path": ["resume"]
             },
@@ -220,7 +220,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/profile/skills",
+              "raw": "{{base_url}}/api/profile/skills",
               "host": ["{{base_url}}"],
               "path": ["profile", "skills"]
             },
@@ -247,7 +247,7 @@
               "raw": "{\n  \"skills\": [\n    {\n      \"skill_id\": \"skill-uuid-1\",\n      \"skill_level\": \"intermediate\"\n    },\n    {\n      \"skill_id\": \"skill-uuid-2\",\n      \"skill_level\": \"advanced\"\n    },\n    {\n      \"skill_id\": \"skill-uuid-3\",\n      \"skill_level\": \"beginner\"\n    }\n  ]\n}"
             },
             "url": {
-              "raw": "{{base_url}}/profile/skills",
+              "raw": "{{base_url}}/api/profile/skills",
               "host": ["{{base_url}}"],
               "path": ["profile", "skills"]
             },
@@ -271,7 +271,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/profile",
+              "raw": "{{base_url}}/api/profile",
               "host": ["{{base_url}}"],
               "path": ["profile"]
             },
@@ -314,7 +314,7 @@
               "raw": "{\n  \"display_name\": \"John Doe\",\n  \"bio\": \"Full-stack developer passionate about building scalable web applications. Currently learning React and TypeScript. Looking to collaborate on open-source projects and improve my system design skills.\",\n  \"experience_level\": \"1-3years\",\n  \"learning_goals\": [\n    {\n      \"original_goal\": \"Master React and Next.js\",\n      \"refined_goal\": \"Build production-ready React applications using Next.js with SSR and API routes\",\n      \"target_proficiency\": \"advanced\",\n      \"timeframe\": \"3months\"\n    },\n    {\n      \"original_goal\": \"Learn System Design\",\n      \"refined_goal\": \"Understand distributed systems, caching strategies, and scalability patterns\",\n      \"target_proficiency\": \"intermediate\",\n      \"timeframe\": \"6months\"\n    }\n  ],\n  \"preferences\": {\n    \"available_days\": [\"Monday\", \"Wednesday\", \"Friday\"],\n    \"preferred_time_slots\": [\"evening\"],\n    \"communication_style\": \"structured\",\n    \"is_searchable\": true\n  }\n}"
             },
             "url": {
-              "raw": "{{base_url}}/profile",
+              "raw": "{{base_url}}/api/profile",
               "host": ["{{base_url}}"],
               "path": ["profile"]
             },
@@ -365,7 +365,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/peer/matches?limit=10",
+              "raw": "{{base_url}}/api/peer/matches?limit=10",
               "host": ["{{base_url}}"],
               "path": ["peer", "matches"],
               "query": [
@@ -751,7 +751,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/skills/search?query=react&limit=10",
+              "raw": "{{base_url}}/api/skills/search?query=react&limit=10",
               "host": ["{{base_url}}"],
               "path": ["skills", "search"],
               "query": [
@@ -782,7 +782,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/skills?limit=100",
+              "raw": "{{base_url}}/api/skills?limit=100",
               "host": ["{{base_url}}"],
               "path": ["skills"],
               "query": [
@@ -841,7 +841,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/peer/matches?limit=10",
+              "raw": "{{base_url}}/api/peer/matches?limit=10",
               "host": ["{{base_url}}"],
               "path": ["peer", "matches"],
               "query": [
@@ -894,7 +894,7 @@
               "raw": "{\n  \"action\": \"like\",\n  \"connection_type\": \"study_partner\",\n  \"message\": \"Hi! I think we have complementary skills. Let's collaborate on a project!\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "raw": "{{base_url}}/api/peer/matches/:candidateId/action",
               "host": ["{{base_url}}"],
               "path": ["peer", "matches", ":candidateId", "action"]
             },
@@ -921,7 +921,7 @@
               "raw": "{\n  \"action\": \"dislike\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "raw": "{{base_url}}/api/peer/matches/:candidateId/action",
               "host": ["{{base_url}}"],
               "path": ["peer", "matches", ":candidateId", "action"]
             },
@@ -948,7 +948,7 @@
               "raw": "{\n  \"action\": \"skip\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "raw": "{{base_url}}/api/peer/matches/:candidateId/action",
               "host": ["{{base_url}}"],
               "path": ["peer", "matches", ":candidateId", "action"]
             },
