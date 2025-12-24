@@ -210,7 +210,7 @@ CREATE INDEX idx_resumes_is_current ON resumes(user_id, is_current);
 CREATE TABLE leetcode_profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  leetcode_username TEXT NOT NULL UNIQUE,
+  leetcode_username TEXT NOT NULL,
   total_solved INTEGER DEFAULT 0,
   easy_solved INTEGER DEFAULT 0,
   medium_solved INTEGER DEFAULT 0,

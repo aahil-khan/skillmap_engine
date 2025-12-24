@@ -1,5 +1,4 @@
 import { supabase } from '../../lib/db/supabase.js';
-import { NotFoundError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
 
 export type NotificationType = 

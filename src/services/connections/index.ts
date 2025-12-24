@@ -36,7 +36,7 @@ export async function sendConnectionRequest(
   senderId: string,
   receiverId: string,
   connectionType: ConnectionType = 'general',
-  matchScore?: number,
+  _matchScore?: number,
   message?: string
 ): Promise<Connection> {
   // Prevent self-connection

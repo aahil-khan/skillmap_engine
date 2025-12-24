@@ -8,7 +8,6 @@ import {
   markConnectionAsRead,
 } from '../services/messages/index.js';
 import { ValidationError } from '../utils/errors.js';
-import logger from '../utils/logger.js';
 
 const app = new Hono();
 

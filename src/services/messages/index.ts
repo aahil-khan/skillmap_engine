@@ -164,12 +164,16 @@ export async function getMessages(
       .map((msg: any) => msg.id);
 
     if (unreadIds.length > 0) {
-      await supabase
+      const { error: markError } = await supabase
         .from('messages')
         .update({ read_at: new Date().toISOString() })
-        .in('id', unreadIds)
-        .then(() => logger.info({ connectionId, count: unreadIds.length }, 'Marked messages as read'))
-        .catch(err => logger.error({ err }, 'Failed to mark messages as read'));
+        .in('id', unreadIds);
+      
+      if (markError) {
+        logger.error({ err: markError }, 'Failed to mark messages as read');
+      } else {
+        logger.info({ connectionId, count: unreadIds.length }, 'Marked messages as read');
+      }
     }
   }
 
