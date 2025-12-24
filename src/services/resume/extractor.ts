@@ -54,15 +54,15 @@ Rules:
       max_retries: 3,
     });
 
-    logger.info('Resume extraction successful', {
+    logger.info({
       skillsCount: extraction.skills.length,
       experienceCount: extraction.work_experience.length,
       projectsCount: extraction.projects.length,
-    });
+    }, 'Resume extraction successful');
 
     return extraction;
   } catch (error) {
-    logger.error('Resume extraction failed', { error });
+    logger.error({ error }, 'Resume extraction failed');
     throw error;
   }
 }

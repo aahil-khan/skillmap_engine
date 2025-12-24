@@ -78,7 +78,7 @@ export async function seedSkillTaxonomy() {
       qdrantCount: points.length,
     };
   } catch (error) {
-    logger.error('Skill taxonomy seeding failed', { error });
+    logger.error({  error  }, 'Skill taxonomy seeding failed');
     throw error;
   }
 }

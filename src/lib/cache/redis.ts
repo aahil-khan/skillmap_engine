@@ -49,8 +49,7 @@ export async function getJSON<T>(key: string): Promise<T | null> {
     try {
       return JSON.parse(data) as T;
     } catch (err) {
-      logger.warn('Failed to parse cached JSON', { key, error: (err as Error).message });
-      // @ts-expect-error allow string fallback if parsing fails
+      logger.warn({ key, error: (err as Error).message }, 'Failed to parse cached JSON');
       return data as T;
     }
   }
@@ -71,7 +70,7 @@ export async function setJSON<T>(key: string, value: T, ttl?: number): Promise<v
 // Helper: Delete key
 export async function deleteKey(key: string): Promise<void> {
   await redis.del(key);
-  logger.debug('Redis key deleted', { key });
+  logger.debug({ key }, 'Redis key deleted');
 }
 
 // Health check
@@ -84,7 +83,7 @@ export async function testRedisConnection(): Promise<boolean> {
     }
     return false;
   } catch (error) {
-    logger.error('Redis connection error', { error });
+    logger.error({ error }, 'Redis connection error');
     return false;
   }
 }

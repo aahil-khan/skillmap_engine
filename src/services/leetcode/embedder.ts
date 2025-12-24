@@ -34,10 +34,10 @@ Trend: ${patternAnalysis.growth_trend}
 Focus Areas: ${patternAnalysis.recommended_focus.join(', ')}
     `.trim();
     
-    logger.debug('Generating LeetCode embedding', {
+    logger.debug({ 
       userId,
       textLength: embeddingText.length,
-    });
+     }, 'Generating LeetCode embedding');
     
     // 2. Generate embedding
     const embedding = await createEmbedding(embeddingText);
@@ -66,17 +66,17 @@ Focus Areas: ${patternAnalysis.recommended_focus.join(', ')}
       ],
     });
     
-    logger.info('LeetCode embedding generated', {
+    logger.info({ 
       userId,
       strengths: patternAnalysis.strength_patterns.length,
       weaknesses: patternAnalysis.weak_patterns.length,
-    });
+     }, 'LeetCode embedding generated');
   } catch (error) {
     const err = error as Error;
-    logger.error('Failed to generate LeetCode embedding', {
+    logger.error({ 
       error: err.message,
       userId,
-    });
+     }, 'Failed to generate LeetCode embedding');
     // Don't throw - embedding generation failure shouldn't block the response
   }
 }
@@ -98,7 +98,7 @@ export async function findSimilarLeetCodeUsers(
       .single();
     
     if (!userProfile || !userProfile.pattern_analysis) {
-      logger.warn('No pattern analysis found for user', { userId });
+      logger.warn({  userId  }, 'No pattern analysis found for user');
       return [];
     }
     
@@ -142,18 +142,18 @@ Similar comfort level: ${pattern_analysis.comfort_level}
       },
     }));
     
-    logger.info('Found similar LeetCode users', {
+    logger.info({ 
       userId,
       matchCount: matches.length,
-    });
+     }, 'Found similar LeetCode users');
     
     return matches;
   } catch (error) {
     const err = error as Error;
-    logger.error('LeetCode similarity search failed', {
+    logger.error({ 
       error: err.message,
       userId,
-    });
+     }, 'LeetCode similarity search failed');
     return [];
   }
 }
@@ -180,9 +180,9 @@ export async function ensureLeetCodeCollection(): Promise<void> {
     }
   } catch (error) {
     const err = error as Error;
-    logger.error('Failed to ensure LeetCode collection', {
+    logger.error({ 
       error: err.message,
-    });
+     }, 'Failed to ensure LeetCode collection');
     throw error;
   }
 }

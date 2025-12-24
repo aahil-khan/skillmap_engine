@@ -10,8 +10,7 @@ import type { ResumeExtraction } from '../../schemas/resume.js';
 export async function processResume(
   userId: string,
   pdfBuffer: Buffer,
-  fileName: string,
-  userToken: string
+  fileName: string
 ) {
   // Use service role key to bypass RLS - we've already validated the user via middleware
   // The userId from authenticate middleware guarantees this is the correct user
@@ -36,7 +35,7 @@ export async function processResume(
     },
   });
   
-  logger.info('Processing resume with service role client', { userId });
+  logger.info({  userId  }, 'Processing resume with service role client');
 
   try {
     // 1. Extract text from PDF
@@ -53,10 +52,10 @@ export async function processResume(
       .single();
     
     if (existingResume) {
-      logger.info('Resume already exists in database', {
+      logger.info({ 
         resumeId: existingResume.id,
         contentHash,
-      });
+       }, 'Resume already exists in database');
       
       // Mark it as current
       await supabase
@@ -83,7 +82,7 @@ export async function processResume(
     let parsedData = await getJSON<ResumeExtraction>(cacheKey);
     
     if (!parsedData) {
-      logger.info('Cache miss - parsing resume', { contentHash });
+      logger.info({  contentHash  }, 'Cache miss - parsing resume');
       
       // PASS 1: Extract data AS-IS (temperature=0 for determinism)
       parsedData = await extractResumeData(resumeText);
@@ -91,7 +90,7 @@ export async function processResume(
       // Cache the raw extraction (30 days)
       await setJSON(cacheKey, parsedData, CacheTTL.RESUME);
     } else {
-      logger.info('Cache hit - using cached parsed data', { contentHash });
+      logger.info({  contentHash  }, 'Cache hit - using cached parsed data');
     }
     
     // PASS 2: Normalize skills using vector similarity
@@ -111,10 +110,10 @@ export async function processResume(
     const createdSkillIds: Record<string, string> = {};
     
     if (unmatchedSkills.length > 0) {
-      logger.info('Creating taxonomy entries for unmatched skills', {
+      logger.info({ 
         count: unmatchedSkills.length,
         skills: unmatchedSkills.map(s => s.original),
-      });
+       }, 'Creating taxonomy entries for unmatched skills');
       
       for (const skill of unmatchedSkills) {
         // Check if skill already exists in taxonomy (case-insensitive)
@@ -139,10 +138,10 @@ export async function processResume(
             .single();
           
           if (error) {
-            logger.error('Failed to create taxonomy entry', {
+            logger.error({ 
               skill: skill.original,
               error: error.message,
-            });
+             }, 'Failed to create taxonomy entry');
           } else if (created) {
             createdSkillIds[skill.original] = created.id;
           }
@@ -166,12 +165,12 @@ export async function processResume(
         })),
     ];
     
-    logger.info('Skills processed', {
+    logger.info({ 
       total: rawSkillNames.length,
       matched: matchedSkills.length,
       unmatchedCreated: Object.keys(createdSkillIds).length,
       toInsert: skillsToInsert.length,
-    });
+     }, 'Skills processed');
     
     // 5. Mark previous resumes as not current
     await supabase
@@ -195,11 +194,11 @@ export async function processResume(
       .single();
     
     if (resumeError) {
-      logger.error('Resume insert failed', {
+      logger.error({ 
         userId,
         errorMessage: resumeError.message,
         errorCode: resumeError.code,
-      });
+       }, 'Resume insert failed');
       throw resumeError;
     }
     
@@ -219,11 +218,11 @@ export async function processResume(
         });
       
       if (skillsError) {
-        logger.error('User skills upsert failed', {
+        logger.error({ 
           userId,
           errorMessage: skillsError.message,
           errorCode: skillsError.code,
-        });
+         }, 'User skills upsert failed');
         throw skillsError;
       }
     }
@@ -254,11 +253,11 @@ export async function processResume(
         .insert(workExperience);
       
       if (expError) {
-        logger.error('Work experience insert failed', {
+        logger.error({ 
           userId,
           message: expError.message,
           details: expError,
-        });
+         }, 'Work experience insert failed');
         throw expError;
       }
     }
@@ -287,11 +286,11 @@ export async function processResume(
         .insert(projects);
       
       if (projError) {
-        logger.error('Projects insert failed', {
+        logger.error({ 
           userId,
           message: projError.message,
           details: projError,
-        });
+         }, 'Projects insert failed');
         throw projError;
       }
     }
@@ -319,23 +318,23 @@ export async function processResume(
         .insert(education);
       
       if (eduError) {
-        logger.error('Education insert failed', {
+        logger.error({ 
           userId,
           message: eduError.message,
           details: eduError,
-        });
+         }, 'Education insert failed');
         throw eduError;
       }
     }
     
-    logger.info('Resume processing complete', {
+    logger.info({ 
       userId,
       resumeId: resumeRecord.id,
       skills: skillsToInsert.length,
       experience: parsedData.work_experience.length,
       projects: parsedData.projects.length,
       education: parsedData.education.length,
-    });
+     }, 'Resume processing complete');
     
     return {
       resumeId: resumeRecord.id,
@@ -349,12 +348,12 @@ export async function processResume(
       cached: parsedData !== null,
     };
   } catch (error) {
-    logger.error('Resume processing failed', { 
+    logger.error({  
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       details: error,
       userId 
-    });
+     }, 'Resume processing failed');
     throw error;
   }
 }

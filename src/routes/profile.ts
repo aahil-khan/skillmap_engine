@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { supabase } from '../lib/db/supabase.js';
 import { getUserProfile, updateUserProfile, updatePeerPreferences, getPeerPreferences } from '../services/profile/index.js';
 import { upsertProfileEmbedding } from '../services/profile/embedder.js';
 import { ProfileUpdateSchema, PeerPreferencesSchema } from '../schemas/profile.js';
-import { ValidationError } from '../utils/errors.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
+import { CacheKeys, CacheTTL, getJSON, setJSON } from '../lib/cache/redis.js';
 
 const app = new Hono();
 
@@ -24,20 +26,19 @@ app.get('/', authenticate, async (c) => {
  */
 app.patch('/', authenticate, async (c) => {
   const userId = c.get('userId');
-  const user = c.get('user');
   
   const body = await c.req.json();
   const parseResult = ProfileUpdateSchema.safeParse(body);
   
   if (!parseResult.success) {
-    throw new ValidationError('Invalid profile data', parseResult.error.errors);
+    throw new ValidationError('Invalid profile data');
   }
   
-  const updated = await updateUserProfile(userId, user.email, parseResult.data);
+  const updated = await updateUserProfile(userId, parseResult.data);
   
   // Regenerate embeddings asynchronously (don't block response)
   upsertProfileEmbedding(userId).catch(err => 
-    logger.error('Failed to update profile embeddings', { userId, error: err.message })
+    logger.error({  userId, error: err.message  }, 'Failed to update profile embeddings')
   );
   
   return c.json(updated);
@@ -62,7 +63,7 @@ app.patch('/preferences', authenticate, async (c) => {
   const parseResult = PeerPreferencesSchema.safeParse(body);
   
   if (!parseResult.success) {
-    throw new ValidationError('Invalid preferences data', parseResult.error.errors);
+    throw new ValidationError('Invalid preferences data');
   }
   
   const updated = await updatePeerPreferences(userId, parseResult.data);
@@ -92,7 +93,7 @@ app.get('/skills', authenticate, async (c) => {
     .order('skill_level', { ascending: false });
   
   if (error) {
-    logger.error('Failed to fetch user skills', { userId, error: error.message });
+    logger.error({  userId, error: error.message  }, 'Failed to fetch user skills');
     throw error;
   }
   
@@ -142,19 +143,121 @@ app.patch('/skills', authenticate, async (c) => {
     });
   
   if (error) {
-    logger.error('Failed to update skill proficiency', { userId, error: error.message });
+    logger.error({  userId, error: error.message  }, 'Failed to update skill proficiency');
     throw error;
   }
   
-  logger.info('Skill proficiency levels updated', {
+  logger.info({ 
     userId,
     skillCount: skills.length,
-  });
+   }, 'Skill proficiency levels updated');
   
   return c.json({
     success: true,
     message: 'Skill proficiency levels updated',
   });
+});
+
+/**
+ * GET /profile/:userId - Get public profile of another user
+ * Used for viewing match details or connection requests
+ */
+app.get('/:userId', authenticate, async (c) => {
+  const currentUserId = c.get('userId');
+  const targetUserId = c.req.param('userId');
+  
+  // Prevent viewing own profile via this endpoint (use GET / instead)
+  if (currentUserId === targetUserId) {
+    const profile = await getUserProfile(currentUserId);
+    return c.json(profile);
+  }
+  
+  // Check cache first
+  const cacheKey = CacheKeys.userProfile(targetUserId);
+  const cached = await getJSON<any>(cacheKey);
+  if (cached) {
+    logger.info({ currentUserId, targetUserId }, 'Public profile retrieved from cache');
+    return c.json(cached);
+  }
+  
+  // Get public profile data
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select(`
+      user_id,
+      display_name,
+      bio,
+      avatar_url,
+      experience_level,
+      created_at
+    `)
+    .eq('user_id', targetUserId)
+    .single();
+  
+  if (profileError || !profile) {
+    logger.error({ currentUserId, targetUserId, error: profileError?.message }, 'Public profile not found');
+    throw new NotFoundError('User profile not found');
+  }
+  
+  // Get public data in parallel
+  const [
+    { data: skills },
+    { data: workExperience },
+    { data: projects },
+    { data: learningGoals },
+    { data: preferences }
+  ] = await Promise.all([
+    supabase
+      .from('user_skills')
+      .select(`
+        skill_level,
+        years_experience,
+        skill:skills_taxonomy(canonical_name, category)
+      `)
+      .eq('user_id', targetUserId)
+      .order('skill_level', { ascending: false }),
+    supabase
+      .from('work_experience')
+      .select('company_name, job_title, start_date, end_date, is_current')
+      .eq('user_id', targetUserId)
+      .order('start_date', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('title, description, technologies, start_date, end_date')
+      .eq('user_id', targetUserId)
+      .order('start_date', { ascending: false }),
+    supabase
+      .from('learning_goals')
+      .select('refined_goal, target_timeline, status')
+      .eq('user_id', targetUserId)
+      .eq('status', 'active'),
+    supabase
+      .from('peer_preferences')
+      .select('matching_preference, available_days, preferred_time_slots')
+      .eq('user_id', targetUserId)
+      .single()
+  ]);
+  
+  logger.info({  currentUserId, targetUserId  }, 'Public profile retrieved');
+  
+  const publicProfile = {
+    ...profile,
+    skills: skills || [],
+    work_experience: workExperience || [],
+    projects: projects || [],
+    learning_goals: learningGoals || [],
+    preferences: preferences || null,
+    // Explicitly exclude sensitive fields
+    email: undefined,
+    phone: undefined,
+    is_searchable: undefined,
+    is_active: undefined,
+  };
+  
+  // Cache the result
+  await setJSON(cacheKey, publicProfile, CacheTTL.PROFILE);
+  
+  return c.json(publicProfile);
 });
 
 export default app;

@@ -15,7 +15,7 @@ export async function findMatchCandidates(
   userId: string,
   limit: number = 100
 ): Promise<MatchCandidate[]> {
-  logger.info('Finding match candidates', { userId, limit });
+  logger.info({  userId, limit  }, 'Finding match candidates');
   
   // Get user's vector profile from Qdrant
   const userPoints = await qdrant.retrieve(COLLECTIONS.USER_PROFILES, {
@@ -28,13 +28,13 @@ export async function findMatchCandidates(
   console.log('Points returned:', userPoints?.length);
   console.log('First point:', JSON.stringify(userPoints?.[0], null, 2));
   
-  logger.info('Retrieved user points', { 
+  logger.info({  
     userId, 
     found: userPoints?.length || 0,
     hasVector: userPoints?.[0]?.vector !== undefined,
     vectorType: typeof userPoints?.[0]?.vector,
     pointKeys: userPoints?.[0] ? Object.keys(userPoints[0]) : [],
-  });
+   }, 'Retrieved user points');
   
   if (!userPoints || userPoints.length === 0) {
     throw new Error('Profile embedding not found. Your profile is being processed. Please wait 10-15 seconds and try again.');
@@ -47,22 +47,26 @@ export async function findMatchCandidates(
   console.log('Vector is null?', vectorData === null);
   console.log('Vector is undefined?', vectorData === undefined);
   
-  logger.info('Vector data details', {
+  logger.info({ 
     userId,
     isArray: Array.isArray(vectorData),
     isObject: vectorData && typeof vectorData === 'object',
     isUndefined: vectorData === undefined,
     isNull: vectorData === null,
-  });
+   }, 'Vector data details');
   
   // Handle both named and unnamed vectors
   let userVector: number[];
-  if (Array.isArray(vectorData)) {
-    userVector = vectorData;
+  if (Array.isArray(vectorData) && Array.isArray(vectorData[0])) {
+    // Array of arrays - flatten or use first
+    userVector = vectorData[0] as number[];
+  } else if (Array.isArray(vectorData)) {
+    userVector = vectorData as number[];
   } else if (vectorData && typeof vectorData === 'object') {
     // Named vectors - try common names
-    const namedVector = vectorData as Record<string, number[]>;
-    userVector = namedVector.weighted_avg || namedVector.default || namedVector.vector;
+    const namedVector = vectorData as Record<string, number[] | number[][]>;
+    const vec = namedVector.weighted_avg || namedVector.default || namedVector.vector;
+    userVector = Array.isArray(vec) && Array.isArray(vec[0]) ? vec[0] as number[] : vec as number[];
     
     if (!userVector) {
       throw new Error(`User vector not found. Available vectors: ${Object.keys(namedVector).join(', ')}`);
@@ -75,7 +79,7 @@ export async function findMatchCandidates(
     throw new Error('User vector is empty or invalid');
   }
   
-  logger.info('Retrieved user vector', { userId, vectorLength: userVector.length });
+  logger.info({  userId, vectorLength: userVector.length  }, 'Retrieved user vector');
   
   // Search for similar profiles using weighted_avg vector
   const results = await qdrant.search(COLLECTIONS.USER_PROFILES, {
@@ -91,14 +95,14 @@ export async function findMatchCandidates(
       ],
     },
     with_payload: true,
-    with_vectors: false,
+    with_vector: false,
   });
   
-  logger.info('Found match candidates', {
+  logger.info({ 
     userId,
     count: results.length,
     topScore: results[0]?.score || 0,
-  });
+   }, 'Found match candidates');
   
   return results.map(r => ({
     user_id: r.payload?.user_id as string,

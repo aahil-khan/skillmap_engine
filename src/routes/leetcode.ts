@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import {
   fetchLeetCodeProfile,
@@ -30,35 +31,35 @@ async function performFullSync(userId: string, username: string) {
   try {
     // 1. Fetch profile from LeetCode API
     const profileData = await fetchLeetCodeProfile(username);
-    logger.info('Profile fetched, starting pattern analysis', { userId, username });
+    logger.info({  userId, username  }, 'Profile fetched, starting pattern analysis');
     
     // 2. Analyze patterns (pass profile for context)
     const patternAnalysis = await analyzePatterns(username, profileData);
-    logger.info('Pattern analysis complete, saving to database', { userId, username });
+    logger.info({  userId, username  }, 'Pattern analysis complete, saving to database');
     
     // 3. Save to Supabase
     await saveLeetCodeProfile(userId, profileData);
-    logger.info('Profile saved, saving pattern analysis', { userId, username });
+    logger.info({  userId, username  }, 'Profile saved, saving pattern analysis');
     
     // 4. Update pattern analysis in DB
     await savePatternAnalysis(userId, patternAnalysis);
-    logger.info('Pattern analysis saved, generating embeddings', { userId, username });
+    logger.info({  userId, username  }, 'Pattern analysis saved, generating embeddings');
     
     // 5. Generate embedding (async, non-blocking for response)
     generateLeetCodeEmbedding(userId, patternAnalysis).catch(err =>
-      logger.error('Embedding generation failed', { userId, error: err.message })
+      logger.error({  userId, error: err.message  }, 'Embedding generation failed')
     );
     
     return { profileData, patternAnalysis };
   } catch (error) {
-    logger.error('Full sync failed', { 
+    logger.error({  
       userId, 
       username, 
       error: error instanceof Error ? error.message : String(error),
       errorName: error instanceof Error ? error.constructor.name : 'Unknown',
       errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error)),
       stack: error instanceof Error ? error.stack : undefined
-    });
+     }, 'Full sync failed');
     throw error;
   }
 }
@@ -70,7 +71,7 @@ async function performFullSync(userId: string, username: string) {
 app.get('/profile', authenticate, async (c) => {
   const userId = c.get('userId');
   
-  logger.info('Fetching LeetCode profile', { userId });
+  logger.info({  userId  }, 'Fetching LeetCode profile');
   
   // Check if profile exists and needs re-sync
   const existingProfile = await getLeetCodeProfileFromDB(userId);
@@ -85,13 +86,13 @@ app.get('/profile', authenticate, async (c) => {
   const needsResync = await shouldResync(userId);
   
   if (needsResync) {
-    logger.info('Profile outdated, triggering background re-sync', { userId });
+    logger.info({  userId  }, 'Profile outdated, triggering background re-sync');
     // Async re-sync in background
     performFullSync(userId, existingProfile.leetcode_username).catch(err =>
-      logger.error('Background re-sync failed', {
+      logger.error({ 
         userId,
         error: err.message,
-      })
+       }, 'Background re-sync failed')
     );
   }
   
@@ -124,7 +125,7 @@ app.post('/sync', authenticate, async (c) => {
     throw new ValidationError('LeetCode username is required');
   }
   
-  logger.info('Manual LeetCode sync requested', { userId, username, force });
+  logger.info({  userId, username, force  }, 'Manual LeetCode sync requested');
   
   // Clear cache if force=true
   if (force) {
@@ -152,7 +153,7 @@ app.post('/sync', authenticate, async (c) => {
 app.post('/analyze', authenticate, async (c) => {
   const userId = c.get('userId');
   
-  logger.info('Re-analyzing LeetCode patterns', { userId });
+  logger.info({  userId  }, 'Re-analyzing LeetCode patterns');
   
   // Get existing profile
   const existingProfile = await getLeetCodeProfileFromDB(userId);
@@ -179,7 +180,7 @@ app.post('/analyze', authenticate, async (c) => {
   
   // Regenerate embedding
   generateLeetCodeEmbedding(userId, patternAnalysis).catch(err =>
-    logger.error('Embedding generation failed', { userId, error: err.message })
+    logger.error({  userId, error: err.message  }, 'Embedding generation failed')
   );
   
   return c.json({
@@ -197,7 +198,7 @@ app.get('/study-partners', authenticate, async (c) => {
   const userId = c.get('userId');
   const limit = parseInt(c.req.query('limit') || '10');
   
-  logger.info('Finding LeetCode study partners', { userId, limit });
+  logger.info({  userId, limit  }, 'Finding LeetCode study partners');
   
   // Check if user has pattern analysis
   const existingProfile = await getLeetCodeProfileFromDB(userId);

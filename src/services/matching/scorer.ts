@@ -129,7 +129,7 @@ export async function calculateMatchScore(
   candidateId: string,
   candidatePayload: Record<string, any>
 ): Promise<MatchScore> {
-  logger.debug('Calculating match score', { userId, candidateId });
+  logger.debug({  userId, candidateId  }, 'Calculating match score');
   
   // Fetch user's matching preference
   const { data: userPreference } = await supabase
@@ -151,12 +151,12 @@ export async function calculateMatchScore(
     candidatePreference?.matching_preference || null
   );
   
-  logger.debug('Using weights and compatibility based on preferences', { 
+  logger.debug({  
     userPreference: userPreference?.matching_preference || 'balanced',
     candidatePreference: candidatePreference?.matching_preference || 'balanced',
     weights,
     compatibilityMultiplier
-  });
+   }, 'Using weights and compatibility based on preferences');
   
   // Fetch user and candidate skills with value_weight from taxonomy
   const { data: userSkills, error: userSkillsError } = await supabase
@@ -172,7 +172,7 @@ export async function calculateMatchScore(
     .eq('user_id', userId);
   
   if (userSkillsError) {
-    logger.error('Failed to fetch user skills', { error: userSkillsError });
+    logger.error({  error: userSkillsError  }, 'Failed to fetch user skills');
   }
   
   const { data: candidateSkills, error: candidateSkillsError } = await supabase
@@ -188,29 +188,39 @@ export async function calculateMatchScore(
     .eq('user_id', candidateId);
   
   if (candidateSkillsError) {
-    logger.error('Failed to fetch candidate skills', { error: candidateSkillsError });
+    logger.error({  error: candidateSkillsError  }, 'Failed to fetch candidate skills');
   }
   
   // Create maps for skill level and weight comparison
   const userSkillMap = new Map(
-    userSkills?.map(s => [
-      s.skill_id,
-      { 
-        level: s.skill_level, 
-        weight: s.skills_taxonomy?.value_weight || 1.0, 
-        category: s.skills_taxonomy?.category || 'Unknown'
-      }
-    ]) || []
+    userSkills?.map(s => {
+      const taxonomy = (s.skills_taxonomy && !Array.isArray(s.skills_taxonomy)) 
+        ? s.skills_taxonomy as { value_weight: number; category: string }
+        : { value_weight: 1.0, category: 'Unknown' };
+      return [
+        s.skill_id,
+        { 
+          level: s.skill_level, 
+          weight: taxonomy.value_weight, 
+          category: taxonomy.category
+        }
+      ];
+    }) || []
   );
   const candidateSkillMap = new Map(
-    candidateSkills?.map(s => [
-      s.skill_id,
-      { 
-        level: s.skill_level, 
-        weight: s.skills_taxonomy?.value_weight || 1.0, 
-        category: s.skills_taxonomy?.category || 'Unknown'
-      }
-    ]) || []
+    candidateSkills?.map(s => {
+      const taxonomy = (s.skills_taxonomy && !Array.isArray(s.skills_taxonomy)) 
+        ? s.skills_taxonomy as { value_weight: number; category: string }
+        : { value_weight: 1.0, category: 'Unknown' };
+      return [
+        s.skill_id,
+        { 
+          level: s.skill_level, 
+          weight: taxonomy.value_weight, 
+          category: taxonomy.category
+        }
+      ];
+    }) || []
   );
   
   // ===== 1. SHARED SKILLS (40%) with level similarity =====
@@ -356,7 +366,6 @@ export async function calculateMatchScore(
   
   // Calculate category overlap
   const categoryOverlap = [...userCategories].filter(c => candidateCategories.has(c)).length;
-  const userCategoryCount = userCategories.size;
   
   // Check for complementary domains (full-stack is valuable!)
   const webDevCategories = ['Frontend Frameworks', 'Backend Frameworks', 'Databases'];

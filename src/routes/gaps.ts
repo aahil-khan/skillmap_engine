@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { analyzeGaps } from '../services/gaps/analyzer.js';
 import { generateLearningPath } from '../services/gaps/pathGenerator.js';
@@ -22,14 +23,14 @@ app.post('/analyze', authenticate, async (c) => {
     throw new ValidationError('goalId is required');
   }
   
-  logger.info('Starting gap analysis', { userId, goalId });
+  logger.info({  userId, goalId  }, 'Starting gap analysis');
   
   // Run gap analysis
   const { gaps, strengths, improvements } = await analyzeGaps(userId, goalId);
   
   // Generate learning path asynchronously (don't block response)
   generateLearningPath(userId, goalId, gaps, strengths).catch(err => {
-    logger.error('Path generation failed (async)', { error: err.message, userId, goalId });
+    logger.error({  error: err.message, userId, goalId  }, 'Path generation failed (async)');
   });
   
   return c.json({
@@ -52,7 +53,7 @@ app.get('/:goalId/path', authenticate, async (c) => {
   const userId = c.get('userId');
   const goalId = c.req.param('goalId');
   
-  logger.info('Fetching learning path', { userId, goalId });
+  logger.info({  userId, goalId  }, 'Fetching learning path');
   
   // Fetch latest learning path
   const { data, error } = await supabase
@@ -65,7 +66,7 @@ app.get('/:goalId/path', authenticate, async (c) => {
     .single();
   
   if (error || !data) {
-    logger.warn('Learning path not found', { userId, goalId });
+    logger.warn({  userId, goalId  }, 'Learning path not found');
     return c.json(
       { 
         error: 'Learning path not found. Run POST /api/gaps/analyze first, then check back in a few seconds.' 
@@ -74,7 +75,7 @@ app.get('/:goalId/path', authenticate, async (c) => {
     );
   }
   
-  logger.info('Learning path retrieved', { userId, goalId, pathId: data.id });
+  logger.info({  userId, goalId, pathId: data.id  }, 'Learning path retrieved');
   
   return c.json({
     id: data.id,
@@ -93,10 +94,10 @@ app.post('/:goalId/regenerate', authenticate, async (c) => {
   const userId = c.get('userId');
   const goalId = c.req.param('goalId');
   
-  logger.info('Regenerating learning path', { userId, goalId });
+  logger.info({  userId, goalId  }, 'Regenerating learning path');
   
   // Re-analyze gaps
-  const { gaps, strengths, improvements } = await analyzeGaps(userId, goalId);
+  const { gaps, strengths } = await analyzeGaps(userId, goalId);
   
   // Get current version number
   const { data: existing } = await supabase
@@ -122,7 +123,7 @@ app.post('/:goalId/regenerate', authenticate, async (c) => {
     });
   } catch (error) {
     const err = error as Error;
-    logger.error('Path regeneration failed', { error: err.message, userId, goalId });
+    logger.error({  error: err.message, userId, goalId  }, 'Path regeneration failed');
     throw error;
   }
 });

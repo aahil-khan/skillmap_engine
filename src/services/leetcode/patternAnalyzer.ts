@@ -54,33 +54,33 @@ export async function analyzePatterns(
   profileData: any
 ): Promise<PatternAnalysis> {
   try {
-    logger.info('Starting LeetCode pattern analysis', { 
+    logger.info({  
       username,
       totalSolved: profileData.totalSolved,
       easy: profileData.easySolved,
       medium: profileData.mediumSolved,
       hard: profileData.hardSolved
-    });
+     }, 'Starting LeetCode pattern analysis');
     
     // 1. Fetch comprehensive data (make skillStats optional)
     const [submissions, skillStatsResult, activity] = await Promise.all([
       fetchSubmissions(username, 20),
       fetchSkillStats(username).catch(err => {
-        logger.warn('Skill stats API unavailable, will analyze from submissions only', { error: err.message });
+        logger.warn({  error: err.message  }, 'Skill stats API unavailable, will analyze from submissions only');
         return null;
       }),
       fetchActivity(username).catch(err => {
-        logger.warn('Activity API unavailable, will use default values', { error: err.message });
+        logger.warn({  error: err.message  }, 'Activity API unavailable, will use default values');
         return null;
       }),
     ]);
     
-    logger.info('Data sources fetched for pattern analysis', {
+    logger.info({ 
       username,
       submissionsCount: submissions.length,
       hasSkillStats: !!skillStatsResult,
       hasActivity: !!activity
-    });
+     }, 'Data sources fetched for pattern analysis');
     
     if (!submissions || submissions.length === 0) {
       throw new Error('No submission history found');
@@ -134,7 +134,7 @@ export async function analyzePatterns(
         const submissionCalendar = JSON.parse(activity.submissionCalendar || '{}');
         totalActiveDays = Object.keys(submissionCalendar).length;
       } catch (err) {
-        logger.warn('Failed to parse submission calendar', { error: err });
+        logger.warn({  error: err  }, 'Failed to parse submission calendar');
         // Estimate from submission count
         totalActiveDays = Math.min(submissions.length, profileData.totalSolved || 0);
       }
@@ -193,17 +193,17 @@ Provide actionable, specific recommendations (e.g., "Practice LeetCode #200, #20
       max_retries: 2,
     });
     
-    logger.info('Pattern analysis complete', {
+    logger.info({ 
       username,
       problems: validProblems.length,
       strengths: analysis.strength_patterns.length,
       weaknesses: analysis.weak_patterns.length,
-    });
+     }, 'Pattern analysis complete');
     
     return analysis;
   } catch (error) {
     const err = error as Error;
-    logger.error('Pattern analysis failed', { error: err.message, username });
+    logger.error({  error: err.message, username  }, 'Pattern analysis failed');
     throw error;
   }
 }

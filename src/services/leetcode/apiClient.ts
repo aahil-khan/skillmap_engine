@@ -40,7 +40,7 @@ async function rateLimitedFetch(url: string, retries = 0): Promise<any> {
       if (response.status === 429 && retries < MAX_RETRIES) {
         // Rate limited - exponential backoff
         const delay = 1000 * Math.pow(2, retries);
-        logger.warn('LeetCode API rate limited', { retries, delay });
+        logger.warn({  retries, delay  }, 'LeetCode API rate limited');
         await new Promise(resolve => setTimeout(resolve, delay));
         return rateLimitedFetch(url, retries + 1);
       }
@@ -58,7 +58,7 @@ async function rateLimitedFetch(url: string, retries = 0): Promise<any> {
     }
     
     if (retries < MAX_RETRIES) {
-      logger.warn('LeetCode API request failed, retrying', { error: err.message, retries });
+      logger.warn({  error: err.message, retries  }, 'LeetCode API request failed, retrying');
       await new Promise(resolve => setTimeout(resolve, 1000));
       return rateLimitedFetch(url, retries + 1);
     }
@@ -74,21 +74,21 @@ export async function fetchProfile(username: string): Promise<any> {
   const cached = await getJSON<any>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode profile cache hit', { username });
+    logger.debug({  username  }, 'LeetCode profile cache hit');
     return cached;
   }
   
   const url = `${LEETCODE_API_BASE}/${username}`;
-  logger.info('Fetching LeetCode profile', { username, url });
+  logger.info({  username, url  }, 'Fetching LeetCode profile');
   const data = await rateLimitedFetch(url);
-  logger.info('LeetCode profile fetched successfully', { 
+  logger.info({  
     username, 
     dataType: typeof data,
     keys: Object.keys(data),
     hasUsername: !!data.username,
     usernameValue: data.username,
     hasRanking: !!data.ranking
-  });
+   }, 'LeetCode profile fetched successfully');
   
   // Cache for 24 hours
   await setJSON(cacheKey, data, CacheTTL.LEETCODE);
@@ -104,20 +104,20 @@ export async function fetchStats(username: string): Promise<any> {
   const cached = await getJSON<any>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode stats cache hit', { username });
+    logger.debug({  username  }, 'LeetCode stats cache hit');
     return cached;
   }
   
   const url = `${LEETCODE_API_BASE}/${username}/solved`;
-  logger.info('Fetching LeetCode stats', { username, url });
+  logger.info({  username, url  }, 'Fetching LeetCode stats');
   const data = await rateLimitedFetch(url);
-  logger.info('LeetCode stats fetched successfully', { 
+  logger.info({  
     username,
     solvedProblem: data.solvedProblem,
     easy: data.easySolved,
     medium: data.mediumSolved,
     hard: data.hardSolved
-  });
+   }, 'LeetCode stats fetched successfully');
   
   // Cache for 24 hours
   await setJSON(cacheKey, data, CacheTTL.LEETCODE);
@@ -133,20 +133,20 @@ export async function fetchSubmissions(username: string, limit = 20): Promise<an
   const cached = await getJSON<any[]>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode submissions cache hit', { username, limit });
+    logger.debug({  username, limit  }, 'LeetCode submissions cache hit');
     return cached;
   }
   
   const url = `${LEETCODE_API_BASE}/${username}/submission?limit=${limit}`;
-  logger.info('Fetching LeetCode submissions', { username, url, limit });
+  logger.info({  username, url, limit  }, 'Fetching LeetCode submissions');
   const data = await rateLimitedFetch(url);
   
   const submissions = data.submission || [];
-  logger.info('LeetCode submissions fetched successfully', { 
+  logger.info({  
     username,
     count: submissions.length,
     hasData: !!data.submission
-  });
+   }, 'LeetCode submissions fetched successfully');
   
   // Cache for 6 hours (more dynamic data)
   await setJSON(cacheKey, submissions, CacheTTL.LEETCODE / 4);
@@ -163,7 +163,7 @@ export async function fetchSkillStats(username: string): Promise<any> {
   const cached = await getJSON<any>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode skill stats cache hit', { username });
+    logger.debug({  username  }, 'LeetCode skill stats cache hit');
     return cached;
   }
   
@@ -174,13 +174,13 @@ export async function fetchSkillStats(username: string): Promise<any> {
     // Cache for 24 hours
     await setJSON(cacheKey, data, CacheTTL.LEETCODE);
     
-    logger.info('LeetCode skill stats fetched', { username });
+    logger.info({  username  }, 'LeetCode skill stats fetched');
     return data;
   } catch (error) {
     const err = error as Error;
     // If endpoint doesn't exist (404), return empty structure
     if (err.message.includes('404') || err.message.includes('Resource not found')) {
-      logger.warn('Skill stats endpoint not available', { username });
+      logger.warn({  username  }, 'Skill stats endpoint not available');
       return { advanced: [], intermediate: [], fundamental: [] };
     }
     throw error;
@@ -195,7 +195,7 @@ export async function fetchActivity(username: string): Promise<any> {
   const cached = await getJSON<any>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode activity cache hit', { username });
+    logger.debug({  username  }, 'LeetCode activity cache hit');
     return cached;
   }
   
@@ -205,7 +205,7 @@ export async function fetchActivity(username: string): Promise<any> {
   // Cache for 24 hours
   await setJSON(cacheKey, data, CacheTTL.LEETCODE);
   
-  logger.info('LeetCode activity fetched', { username });
+  logger.info({  username  }, 'LeetCode activity fetched');
   return data;
 }
 
@@ -217,7 +217,7 @@ export async function fetchProblemDetails(titleSlug: string): Promise<any> {
   const cached = await getJSON<any>(cacheKey);
   
   if (cached) {
-    logger.debug('LeetCode problem details cache hit', { titleSlug });
+    logger.debug({  titleSlug  }, 'LeetCode problem details cache hit');
     return cached;
   }
   
@@ -227,7 +227,7 @@ export async function fetchProblemDetails(titleSlug: string): Promise<any> {
   // Cache for 30 days (problem data rarely changes)
   await setJSON(cacheKey, data, CacheTTL.LEETCODE * 30);
   
-  logger.debug('LeetCode problem details fetched', { titleSlug });
+  logger.debug({  titleSlug  }, 'LeetCode problem details fetched');
   return data;
 }
 
@@ -249,5 +249,5 @@ export async function clearUserCache(username: string): Promise<void> {
   
   await Promise.all(keys.map(key => redis.del(key)));
   
-  logger.info('LeetCode cache cleared', { username });
+  logger.info({  username  }, 'LeetCode cache cleared');
 }

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { normalizeSkills } from '../services/taxonomy/normalizer.js';
 import { z } from 'zod';
 

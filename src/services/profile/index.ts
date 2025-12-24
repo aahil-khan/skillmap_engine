@@ -16,7 +16,7 @@ export async function getUserProfile(userId: string) {
     .single();
   
   if (profileError || !profile) {
-    logger.error('Profile not found', { userId, error: profileError?.message });
+    logger.error({  userId, error: profileError?.message  }, 'Profile not found');
     throw new NotFoundError('Profile not found');
   }
   
@@ -46,7 +46,7 @@ export async function getUserProfile(userId: string) {
     supabase.from('peer_preferences').select('*').eq('user_id', userId).single()
   ]);
   
-  logger.info('Profile retrieved', { userId });
+  logger.info({  userId  }, 'Profile retrieved');
   
   return {
     ...profile,
@@ -62,7 +62,7 @@ export async function getUserProfile(userId: string) {
 /**
  * Update user profile fields
  */
-export async function updateUserProfile(userId: string, email: string, updates: ProfileUpdate) {
+export async function updateUserProfile(userId: string, updates: ProfileUpdate) {
   // Separate learning_goals and preferences from profile updates
   const { learning_goals, preferences, ...profileUpdates } = updates;
   
@@ -94,7 +94,7 @@ export async function updateUserProfile(userId: string, email: string, updates: 
       .single();
     
     if (result.error) {
-      logger.error('Profile update failed', { userId, error: result.error.message });
+      logger.error({  userId, error: result.error.message  }, 'Profile update failed');
       throw result.error;
     }
     
@@ -108,7 +108,7 @@ export async function updateUserProfile(userId: string, email: string, updates: 
       .single();
     
     if (result.error) {
-      logger.error('Profile fetch failed', { userId, error: result.error.message });
+      logger.error({  userId, error: result.error.message  }, 'Profile fetch failed');
       throw result.error;
     }
     
@@ -136,7 +136,7 @@ export async function updateUserProfile(userId: string, email: string, updates: 
         .insert(goalsToInsert);
       
       if (goalsError) {
-        logger.error('Learning goals insert failed', { userId, error: goalsError.message });
+        logger.error({  userId, error: goalsError.message  }, 'Learning goals insert failed');
         throw goalsError;
       }
     }
@@ -160,22 +160,22 @@ export async function updateUserProfile(userId: string, email: string, updates: 
           is_active: data.is_active ?? true,
         },
       });
-      logger.info('Updated Qdrant payload for visibility fields', { 
+      logger.info({  
         userId, 
         is_searchable: data.is_searchable, 
         is_active: data.is_active 
-      });
+       }, 'Updated Qdrant payload for visibility fields');
     } catch (error: any) {
-      logger.error('Failed to update Qdrant payload', { userId, error: error.message });
+      logger.error({  userId, error: error.message  }, 'Failed to update Qdrant payload');
     }
   }
   
   // Generate and store embeddings asynchronously (don't block response)
   upsertProfileEmbedding(userId).catch(error => {
-    logger.error('Embedding generation failed (async)', { userId, error: error.message });
+    logger.error({  userId, error: error.message  }, 'Embedding generation failed (async)');
   });
   
-  logger.info('Profile updated', { userId, fields: Object.keys(updates), profile_completed });
+  logger.info({  userId, fields: Object.keys(updates), profile_completed  }, 'Profile updated');
   return data;
 }
 
@@ -203,11 +203,11 @@ export async function updatePeerPreferences(userId: string, preferences: PeerPre
       .single();
     
     if (error) {
-      logger.error('Preferences update failed', { userId, error: error.message });
+      logger.error({  userId, error: error.message  }, 'Preferences update failed');
       throw error;
     }
     
-    logger.info('Preferences updated', { userId });
+    logger.info({  userId  }, 'Preferences updated');
     return data;
   } else {
     // Create new
@@ -221,11 +221,11 @@ export async function updatePeerPreferences(userId: string, preferences: PeerPre
       .single();
     
     if (error) {
-      logger.error('Preferences creation failed', { userId, error: error.message });
+      logger.error({  userId, error: error.message  }, 'Preferences creation failed');
       throw error;
     }
     
-    logger.info('Preferences created', { userId });
+    logger.info({  userId  }, 'Preferences created');
     return data;
   }
 }
@@ -241,7 +241,7 @@ export async function getPeerPreferences(userId: string) {
     .single();
   
   if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-    logger.error('Failed to get preferences', { userId, error: error.message });
+    logger.error({  userId, error: error.message  }, 'Failed to get preferences');
     throw error;
   }
   

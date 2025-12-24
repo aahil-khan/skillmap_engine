@@ -16,7 +16,7 @@ export interface SkillFrequency {
 export function generateTaxonomyBasedFrequencies(
   targetRole?: string
 ): SkillFrequency[] {
-  logger.info('Using taxonomy fallback for skill frequencies', { targetRole });
+  logger.info({  targetRole  }, 'Using taxonomy fallback for skill frequencies');
   
   // Map taxonomy skills to frequency format
   // job_demand_frequency: 0.1-0.9 scale → convert to 10-90% frequency
@@ -31,11 +31,11 @@ export function generateTaxonomyBasedFrequencies(
   // Sort by frequency (demand) descending
   frequencies.sort((a, b) => b.frequency - a.frequency);
   
-  logger.info('Taxonomy frequencies generated', { 
+  logger.info({  
     skillCount: frequencies.length,
     topSkill: frequencies[0]?.canonical_name,
     topFrequency: frequencies[0]?.frequency
-  });
+   }, 'Taxonomy frequencies generated');
   
   return frequencies;
 }

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { recordFeedback, getFeedbackAnalytics } from '../services/feedback/index.js';
 import { ValidationError } from '../utils/errors.js';

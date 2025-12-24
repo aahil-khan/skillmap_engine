@@ -37,14 +37,14 @@ export async function fetchLeetCodeProfile(username: string): Promise<LeetCodePr
       throw new Error(`LeetCode user '${username}' not found`);
     }
     
-    logger.info('Processing LeetCode profile data', { 
+    logger.info({  
       username,
       profileKeys: Object.keys(profile),
       statsKeys: Object.keys(stats),
       profileUsername: profile.username,
       profileHasUsername: !!profile.username,
       statsHasSolved: !!stats.solvedProblem
-    });
+     }, 'Processing LeetCode profile data');
     
     // Calculate acceptance rate from stats
     // API returns: acSubmissionNum: [{difficulty: 'All', submissions: 119}, ...]
@@ -76,17 +76,17 @@ export async function fetchLeetCodeProfile(username: string): Promise<LeetCodePr
       about: profile.about || '',
     };
     
-    logger.info('LeetCode profile processed successfully', {
+    logger.info({ 
       username: result.username,
       hasUsername: !!result.username,
       totalSolved: result.totalSolved,
       ranking: result.ranking
-    });
+     }, 'LeetCode profile processed successfully');
     
     return result;
   } catch (error) {
     const err = error as Error;
-    logger.error('LeetCode fetch failed', { error: err.message, username });
+    logger.error({  error: err.message, username  }, 'LeetCode fetch failed');
     throw error;
   }
 }
@@ -98,12 +98,12 @@ export async function saveLeetCodeProfile(
   userId: string,
   profileData: LeetCodeProfileData
 ): Promise<void> {
-  logger.info('Saving LeetCode profile to database', { 
+  logger.info({  
     userId, 
     username: profileData.username,
     hasUsername: !!profileData.username,
     totalSolved: profileData.totalSolved
-  });
+   }, 'Saving LeetCode profile to database');
   
   if (!profileData.username) {
     throw new Error('LeetCode username is missing from profile data');
@@ -131,21 +131,21 @@ export async function saveLeetCodeProfile(
     );
   
   if (error) {
-    logger.error('Failed to save LeetCode profile', {
+    logger.error({ 
       error: error.message,
       errorCode: error.code,
       errorDetails: error.details,
       errorHint: error.hint,
       userId,
       username: profileData.username,
-    });
+     }, 'Failed to save LeetCode profile');
     throw error;
   }
   
-  logger.info('LeetCode profile saved', {
+  logger.info({ 
     userId,
     username: profileData.username,
-  });
+   }, 'LeetCode profile saved');
 }
 
 /**
@@ -182,10 +182,10 @@ export async function getLeetCodeProfileFromDB(userId: string): Promise<any> {
       // No profile found
       return null;
     }
-    logger.error('Failed to fetch LeetCode profile from DB', {
+    logger.error({ 
       error: error.message,
       userId,
-    });
+     }, 'Failed to fetch LeetCode profile from DB');
     throw error;
   }
   
@@ -199,11 +199,11 @@ export async function savePatternAnalysis(
   userId: string,
   patternAnalysis: any
 ): Promise<void> {
-  logger.info('Saving pattern analysis to database', { 
+  logger.info({  
     userId, 
     hasData: !!patternAnalysis,
     keys: patternAnalysis ? Object.keys(patternAnalysis) : []
-  });
+   }, 'Saving pattern analysis to database');
   
   const { error } = await supabase
     .from('leetcode_profiles')
@@ -213,16 +213,16 @@ export async function savePatternAnalysis(
     .eq('user_id', userId);
   
   if (error) {
-    logger.error('Failed to save pattern analysis', {
+    logger.error({ 
       error: error.message,
       errorCode: error.code,
       errorDetails: error.details,
       errorHint: error.hint,
       userId,
       patternAnalysisKeys: patternAnalysis ? Object.keys(patternAnalysis) : []
-    });
+     }, 'Failed to save pattern analysis');
     throw error;
   }
   
-  logger.info('Pattern analysis saved successfully', { userId });
+  logger.info({  userId  }, 'Pattern analysis saved successfully');
 }

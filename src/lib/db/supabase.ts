@@ -28,15 +28,15 @@ export const supabase = createClient(
 // Health check helper
 export async function testSupabaseConnection(): Promise<boolean> {
   try {
-    const { data, error } = await supabase.from('user_profiles').select('count').limit(1);
+    const { error } = await supabase.from('user_profiles').select('count').limit(1);
     if (error) {
-      logger.error('Supabase health check failed', { error: error.message });
+      logger.error({  error: error.message  }, 'Supabase health check failed');
       return false;
     }
     logger.info('Supabase connection healthy');
     return true;
   } catch (error) {
-    logger.error('Supabase connection error', { error });
+    logger.error({  error  }, 'Supabase connection error');
     return false;
   }
 }

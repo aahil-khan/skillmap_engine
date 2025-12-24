@@ -48,7 +48,7 @@ export async function normalizeSkills(rawSkills: string[]): Promise<NormalizedSk
           canonical: trimmed,
           confidence: 0,
         });
-        logger.warn('No similar skills found', { skill: trimmed });
+        logger.warn({  skill: trimmed  }, 'No similar skills found');
         continue;
       }
 
@@ -66,11 +66,11 @@ export async function normalizeSkills(rawSkills: string[]): Promise<NormalizedSk
           aliases.some(alias => alias.toLowerCase() === lowerInput)
         ) {
           bestMatch = result;
-          logger.info('Exact alias match found', {
+          logger.info({ 
             input: trimmed,
             canonical: canonical,
             score: result.score,
-          });
+           }, 'Exact alias match found');
           break;
         }
       }
@@ -78,17 +78,17 @@ export async function normalizeSkills(rawSkills: string[]): Promise<NormalizedSk
       // If no exact match, use top result only if score is acceptable
       if (!bestMatch && results[0].score >= 0.70) {
         bestMatch = results[0];
-        logger.debug('Fuzzy match accepted', {
+        logger.debug({ 
           input: trimmed,
           canonical: results[0].payload?.canonical_name,
           score: results[0].score,
-        });
+         }, 'Fuzzy match accepted');
       } else if (!bestMatch) {
-        logger.debug('No match above threshold', {
+        logger.debug({ 
           input: trimmed,
           topScore: results[0].score,
           threshold: 0.70,
-        });
+         }, 'No match above threshold');
       }
 
       if (bestMatch) {
@@ -104,11 +104,11 @@ export async function normalizeSkills(rawSkills: string[]): Promise<NormalizedSk
         await setJSON(cacheKey, result, CacheTTL.SKILL);
         normalized.push(result);
 
-        logger.debug('Skill normalized', {
+        logger.debug({ 
           original: trimmed,
           canonical: result.canonical,
           confidence: result.confidence,
-        });
+         }, 'Skill normalized');
       } else {
         // No match found, keep original
         const result: NormalizedSkill = {
@@ -118,10 +118,10 @@ export async function normalizeSkills(rawSkills: string[]): Promise<NormalizedSk
         };
 
         normalized.push(result);
-        logger.warn('Skill not found in taxonomy', { skill: trimmed });
+        logger.warn({  skill: trimmed  }, 'Skill not found in taxonomy');
       }
     } catch (error) {
-      logger.error('Skill normalization failed', { skill: trimmed, error });
+      logger.error({  skill: trimmed, error  }, 'Skill normalization failed');
       // Fallback to original on error
       normalized.push({
         original: trimmed,

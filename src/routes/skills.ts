@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { supabase } from '../lib/db/supabase.js';
 import { ValidationError } from '../utils/errors.js';
@@ -18,7 +19,7 @@ app.get('/search', authenticate, async (c) => {
     throw new ValidationError('Query parameter is required');
   }
   
-  logger.info('Searching skills taxonomy', { query, limit });
+  logger.info({  query, limit  }, 'Searching skills taxonomy');
   
   const { data: skills, error } = await supabase
     .from('skills_taxonomy')
@@ -27,11 +28,11 @@ app.get('/search', authenticate, async (c) => {
     .limit(limit);
   
   if (error) {
-    logger.error('Skills search failed', { query, error: error.message });
+    logger.error({  query, error: error.message  }, 'Skills search failed');
     throw error;
   }
   
-  logger.info('Skills search complete', { query, resultCount: skills?.length || 0 });
+  logger.info({  query, resultCount: skills?.length || 0  }, 'Skills search complete');
   
   return c.json({
     query,
@@ -61,7 +62,7 @@ app.get('/', authenticate, async (c) => {
   const { data: skills, error } = await query;
   
   if (error) {
-    logger.error('Failed to fetch skills', { error: error.message });
+    logger.error({  error: error.message  }, 'Failed to fetch skills');
     throw error;
   }
   

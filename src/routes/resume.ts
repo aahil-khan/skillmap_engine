@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { processResume } from '../services/resume/index.js';
 import { ValidationError } from '../utils/errors.js';
@@ -8,12 +9,6 @@ const app = new Hono();
 
 app.post('/upload', authenticate, async (c) => {
   const userId = c.get('userId');
-  const authHeader = c.req.header('Authorization');
-  const userToken = authHeader?.substring(7); // Remove 'Bearer '
-  
-  if (!userToken) {
-    throw new ValidationError('Missing authentication token');
-  }
   
   // Get file from multipart form
   const body = await c.req.parseBody();
@@ -35,7 +30,7 @@ app.post('/upload', authenticate, async (c) => {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   
-  const result = await processResume(userId, buffer, file.name, userToken);
+  const result = await processResume(userId, buffer, file.name);
   
   return c.json({
     message: 'Resume processed successfully',

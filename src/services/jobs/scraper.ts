@@ -40,14 +40,14 @@ Be precise - only extract skills explicitly mentioned.`
       max_retries: 2,
     });
     
-    logger.debug('Skills extracted from job', {
+    logger.debug({ 
       requiredCount: extraction.required_skills.length,
       niceToHaveCount: extraction.nice_to_have_skills.length
-    });
+     }, 'Skills extracted from job');
     
     return extraction;
   } catch (error) {
-    logger.error('Skill extraction failed', { error });
+    logger.error({  error  }, 'Skill extraction failed');
     return null;
   }
 }
@@ -85,10 +85,10 @@ export async function extractSkillsFromJobDescriptions(
     }
   }
   
-  logger.info('Skills extracted from job descriptions', { 
+  logger.info({  
     jobCount: jobDescriptions.length,
     skillCount: allSkills.length 
-  });
+   }, 'Skills extracted from job descriptions');
   
   return allSkills;
 }

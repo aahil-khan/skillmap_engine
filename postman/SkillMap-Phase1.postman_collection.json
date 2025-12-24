@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "SkillMap Engine - Phase 2 (Features 1-3)",
-    "description": "Complete API testing: Authentication → Resume → Profile → Matching → Job Market → Skill Gaps → LeetCode",
+    "name": "SkillMap Engine - Phase 1 Complete (All Features)",
+    "description": "Complete API testing: Auth → Resume → Profile → Matching → Connections → Messaging → Notifications → Job Market → Skill Gaps → LeetCode",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -806,7 +806,651 @@
       ]
     },
     {
-      "name": "9. LeetCode Pattern Analysis (Feature 3)",
+      "name": "9. Peer Connections (NEW - LinkedIn-Style)",
+      "item": [
+        {
+          "name": "Get Match Candidates",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Match candidates retrieved:', jsonData.candidates.length, 'matches');",
+                  "    if (jsonData.candidates.length > 0) {",
+                  "        const firstCandidate = jsonData.candidates[0];",
+                  "        console.log('First match:', firstCandidate.display_name);",
+                  "        console.log('Match score:', firstCandidate.match_score);",
+                  "        console.log('Has pending request:', firstCandidate.has_pending_request);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Failed to get matches:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/peer/matches?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["peer", "matches"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of candidates (default 50)"
+                }
+              ]
+            },
+            "description": "Get peer match candidates. Shows pending requests as badge. Filters out: existing connections, dislikes, recent skips (7 days)."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Connection Request (Like)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set('connection_id', jsonData.connection.id);",
+                  "    console.log('✅ Connection request sent');",
+                  "    console.log('Connection ID:', jsonData.connection.id);",
+                  "    console.log('Status:', jsonData.connection.status);",
+                  "} else {",
+                  "    console.log('❌ Failed to send connection:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"like\",\n  \"connection_type\": \"study_partner\",\n  \"message\": \"Hi! I think we have complementary skills. Let's collaborate on a project!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "host": ["{{base_url}}"],
+              "path": ["peer", "matches", ":candidateId", "action"]
+            },
+            "description": "Send connection request to a candidate. Types: mentorship, project_partner, study_partner, general. Invalidates both users' match caches."
+          },
+          "response": []
+        },
+        {
+          "name": "Dislike User (Hide)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"dislike\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "host": ["{{base_url}}"],
+              "path": ["peer", "matches", ":candidateId", "action"]
+            },
+            "description": "Hide user permanently. They won't appear in future matches. Cannot be undone."
+          },
+          "response": []
+        },
+        {
+          "name": "Skip User (Decide Later)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"skip\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/peer/matches/:candidateId/action",
+              "host": ["{{base_url}}"],
+              "path": ["peer", "matches", ":candidateId", "action"]
+            },
+            "description": "Skip user for now. They'll reappear in matches after 7 days."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Connections",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Connections retrieved:', jsonData.connections.length);",
+                  "    jsonData.connections.forEach(c => {",
+                  "        console.log(`- ${c.other_user.display_name} (${c.status})`);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections?type=received",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "received",
+                  "description": "received (pending requests), sent (your pending requests), accepted (active connections)"
+                }
+              ]
+            },
+            "description": "List connections. Filter by type: received (inbox), sent (waiting), accepted (active). Each shows full profile."
+          },
+          "response": []
+        },
+        {
+          "name": "View Single Connection",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}"]
+            },
+            "description": "Get full details of a specific connection request or active connection."
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Connection Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('✅ Connection accepted');",
+                  "    console.log('You can now send messages to this user');",
+                  "} else {",
+                  "    console.log('❌ Failed:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"accept\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}/respond",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}", "respond"]
+            },
+            "description": "Accept a pending connection request. Sender gets notification. Both can now message each other."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Connection Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}/respond",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}", "respond"]
+            },
+            "description": "Reject a pending connection request. Sender is notified. User can reappear in your matches later."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Connection Request (Sender)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}"]
+            },
+            "description": "Cancel a pending connection request you sent. Only sender can cancel. Receiver will see user in matches again."
+          },
+          "response": []
+        },
+        {
+          "name": "Connection Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const stats = pm.response.json();",
+                  "    console.log('✅ Connection Stats:');",
+                  "    console.log('Pending received:', stats.pending_received);",
+                  "    console.log('Pending sent:', stats.pending_sent);",
+                  "    console.log('Active connections:', stats.accepted);",
+                  "    console.log('Total:', stats.total);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "stats"]
+            },
+            "description": "Get connection summary: pending_received (inbox count), pending_sent (waiting for response), accepted (active), total."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Messaging / DM (NEW - REST Polling)",
+      "item": [
+        {
+          "name": "Send Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Message sent');",
+                  "    console.log('Message ID:', jsonData.message.id);",
+                  "} else {",
+                  "    console.log('❌ Failed to send message:', pm.response.json());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hey! Great to connect. I'd love to collaborate on a project together.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}/messages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}", "messages"]
+            },
+            "description": "Send a message (1-5000 chars). Only works in accepted connections. Receiver gets notification immediately."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Message History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Messages retrieved:', jsonData.messages.length);",
+                  "    console.log('Has more:', jsonData.pagination.has_more);",
+                  "    jsonData.messages.forEach(msg => {",
+                  "        console.log(`${msg.sender.display_name}: ${msg.content.substring(0, 50)}...`);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}/messages?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}", "messages"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Messages per page (default 50, max 100)"
+                },
+                {
+                  "key": "before",
+                  "value": "",
+                  "description": "Message ID for pagination (cursor-based)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get message history. Auto-marks messages as read. Cursor-based pagination using 'before' parameter."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Connection as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connections/{{connection_id}}/messages/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "connections", "{{connection_id}}", "messages", "read"]
+            },
+            "description": "Manually mark all unread messages in this connection as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Message Count",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Unread messages:', jsonData.unread_count);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/messages/unread",
+              "host": ["{{base_url}}"],
+              "path": ["api", "messages", "unread"],
+              "query": [
+                {
+                  "key": "by_connection",
+                  "value": "false",
+                  "description": "If true, returns unread count per connection",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get total unread message count. Use for badge on message icon. Poll every 10-30 seconds."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. Notifications (NEW - Auto-Triggered)",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('✅ Notifications retrieved:', jsonData.notifications.length);",
+                  "    jsonData.notifications.forEach(notif => {",
+                  "        console.log(`[${notif.type}] ${notif.title}`);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?unread_only=false&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "unread_only",
+                  "value": "false",
+                  "description": "true = only unread"
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Per page (default 50, max 100)"
+                }
+              ]
+            },
+            "description": "Get notifications. Types: connection_request, connection_accepted, new_message. Includes related_user profile data."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Notification Count",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const count = pm.response.json().unread_count;",
+                  "    console.log('✅ Unread notifications:', count);",
+                  "    if (count > 0) console.log('Show badge on notification icon');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/unread/count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "unread", "count"]
+            },
+            "description": "Get unread notification count. Poll every 30-60 seconds to show badge."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/:notificationId/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", ":notificationId", "read"]
+            },
+            "description": "Mark single notification as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/read-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "read-all"]
+            },
+            "description": "Bulk mark all unread notifications as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/:notificationId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", ":notificationId"]
+            },
+            "description": "Delete a notification."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. LeetCode Pattern Analysis (Feature 3)",
       "item": [
         {
           "name": "Sync LeetCode Profile",

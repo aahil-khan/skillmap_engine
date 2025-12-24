@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import '../types/hono.js'; // Type declarations for Hono context
 import { authenticate } from '../middleware/auth.js';
 import { extractSkillsFromJobDescriptions } from '../services/jobs/scraper.js';
 import { analyzeSkillFrequencies, cacheJobMarketSkills, clearJobMarketCache } from '../services/jobs/aggregator.js';
@@ -24,10 +25,10 @@ app.post('/analyze', authenticate, async (c) => {
   
   // Check cache first
   const cacheKey = CacheKeys.jobSkills(userId, goalId);
-  const cached = await getJSON(cacheKey);
+  const cached = await getJSON<{ frequencies: any; totalJobs: number; source: string }>(cacheKey);
   
   if (cached) {
-    logger.info('Returning cached job market data', { userId, goalId });
+    logger.info({  userId, goalId  }, 'Returning cached job market data');
     return c.json({
       skills: cached.frequencies,
       totalJobs: cached.totalJobs,
@@ -42,7 +43,7 @@ app.post('/analyze', authenticate, async (c) => {
   
   // User provided job descriptions
   if (jobDescriptions && Array.isArray(jobDescriptions) && jobDescriptions.length > 0) {
-    logger.info('Analyzing user-provided jobs', { userId, goalId, jobCount: jobDescriptions.length });
+    logger.info({  userId, goalId, jobCount: jobDescriptions.length  }, 'Analyzing user-provided jobs');
     
     const skills = await extractSkillsFromJobDescriptions(jobDescriptions);
     frequencies = await analyzeSkillFrequencies(skills, jobDescriptions.length);
@@ -51,7 +52,7 @@ app.post('/analyze', authenticate, async (c) => {
   } 
   // Fallback to Phase 1 taxonomy
   else {
-    logger.info('Using taxonomy fallback', { userId, goalId, targetRole });
+    logger.info({  userId, goalId, targetRole  }, 'Using taxonomy fallback');
     
     frequencies = generateTaxonomyBasedFrequencies(targetRole);
     totalJobs = frequencies.length;
@@ -86,7 +87,7 @@ app.put('/analyze', authenticate, async (c) => {
     throw new ValidationError('goalId is required');
   }
   
-  logger.info('Updating job market analysis', { userId, goalId });
+  logger.info({  userId, goalId  }, 'Updating job market analysis');
   
   // Clear existing cache
   await clearJobMarketCache(userId, goalId);
@@ -132,7 +133,7 @@ app.delete('/:goalId', authenticate, async (c) => {
     throw new ValidationError('goalId is required');
   }
   
-  logger.info('Clearing job market cache', { userId, goalId });
+  logger.info({  userId, goalId  }, 'Clearing job market cache');
   
   await clearJobMarketCache(userId, goalId);
   

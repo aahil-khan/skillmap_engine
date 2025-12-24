@@ -98,7 +98,7 @@ ${gapsList}
 
 Generate a step-by-step learning path.`;
     
-    logger.info('Generating learning path with LLM', { userId, goalId, gapCount: gaps.length });
+    logger.info({  userId, goalId, gapCount: gaps.length  }, 'Generating learning path with LLM');
     
     // 3. Generate with LLM (deterministic for consistency)
     const path = await instructor.chat.completions.create({
@@ -119,12 +119,12 @@ Generate a step-by-step learning path.`;
       max_retries: 3,
     });
     
-    logger.info('Learning path generated', {
+    logger.info({ 
       userId,
       goalId,
       steps: path.steps.length,
       weeks: path.total_estimated_weeks,
-    });
+     }, 'Learning path generated');
     
     // 4. Store in database
     const { data: savedPath, error } = await supabase
@@ -139,29 +139,29 @@ Generate a step-by-step learning path.`;
       .single();
     
     if (error) {
-      logger.error('Failed to save learning path to database', { 
+      logger.error({  
         error: error.message, 
         userId, 
         goalId 
-      });
+       }, 'Failed to save learning path to database');
       // Return generated path anyway
       return path;
     }
     
-    logger.info('Learning path saved to database', { 
+    logger.info({  
       userId, 
       goalId, 
       pathId: savedPath.id 
-    });
+     }, 'Learning path saved to database');
     
     return savedPath;
   } catch (error) {
     const err = error as Error;
-    logger.error('Learning path generation failed', { 
+    logger.error({  
       error: err.message, 
       userId, 
       goalId 
-    });
+     }, 'Learning path generation failed');
     throw error;
   }
 }

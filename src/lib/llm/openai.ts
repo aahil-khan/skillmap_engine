@@ -26,7 +26,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
     
     return response.data[0].embedding;
   } catch (error) {
-    logger.error('Embedding creation failed', { error });
+    logger.error({  error  }, 'Embedding creation failed');
     throw error;
   }
 }
@@ -43,7 +43,7 @@ export async function createBatchEmbeddings(texts: string[]): Promise<number[][]
     
     return response.data.map(item => item.embedding);
   } catch (error) {
-    logger.error('Batch embedding creation failed', { error });
+    logger.error({  error  }, 'Batch embedding creation failed');
     throw error;
   }
 }

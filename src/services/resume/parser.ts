@@ -10,7 +10,7 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     const data = await pdf(buffer);
     return data.text;
   } catch (error) {
-    logger.error('PDF parsing failed', { error });
+    logger.error({  error  }, 'PDF parsing failed');
     throw new Error('Failed to extract text from PDF');
   }
 }

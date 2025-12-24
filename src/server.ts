@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { cors } from 'hono/cors';
+import './types/hono.js'; // Import type declarations
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errors.js';
 import { testSupabaseConnection } from './lib/db/supabase.js';
@@ -15,6 +16,9 @@ import gapsRoutes from './routes/gaps.js';
 import skillsRoutes from './routes/skills.js';
 import leetcodeRoutes from './routes/leetcode.js';
 import feedbackRoutes from './routes/feedback.js';
+import connectionsRoutes from './routes/connections.js';
+import messagesRoutes from './routes/messages.js';
+import notificationsRoutes from './routes/notifications.js';
 
 const app = new Hono();
 
@@ -32,6 +36,12 @@ app.route('/api/gaps', gapsRoutes);
 app.route('/skills', skillsRoutes);
 app.route('/api/leetcode', leetcodeRoutes);
 app.route('/api/feedback', feedbackRoutes);
+app.route('/api/connections', connectionsRoutes);
+app.route('/peer/matches/:candidateId', connectionsRoutes); // Swipe actions
+app.route('/api/messages', messagesRoutes); // Message unread count
+// Message sending/receiving is nested under connections
+app.route('/api/connections', messagesRoutes); // Includes /:connectionId/messages
+app.route('/api/notifications', notificationsRoutes);
 
 // Health check
 app.get('/health', async (c) => {
@@ -70,7 +80,7 @@ async function initializeInfrastructure() {
 }
 
 initializeInfrastructure().catch((error) => {
-  logger.error('Failed to initialize infrastructure', { error });
+  logger.error({  error  }, 'Failed to initialize infrastructure');
   process.exit(1);
 });
 

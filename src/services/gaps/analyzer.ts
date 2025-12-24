@@ -37,11 +37,14 @@ export async function analyzeGaps(
   const userSkillMap = new Map<string, string>();
   if (userSkills) {
     for (const s of userSkills) {
-      userSkillMap.set(s.skills_taxonomy.canonical_name, s.skill_level);
+      if (s.skills_taxonomy && !Array.isArray(s.skills_taxonomy)) {
+        const taxonomy = s.skills_taxonomy as { canonical_name: string };
+        userSkillMap.set(taxonomy.canonical_name, s.skill_level);
+      }
     }
   }
   
-  logger.info('Fetched user skills', { userId, skillCount: userSkillMap.size });
+  logger.info({  userId, skillCount: userSkillMap.size  }, 'Fetched user skills');
   
   // 2. Fetch job market skills (from Feature 1)
   // First try Redis cache
@@ -83,12 +86,12 @@ export async function analyzeGaps(
     );
   }
   
-  logger.info('Loaded job market data', {
+  logger.info({ 
     userId,
     goalId,
     skillCount: jobMarketData.frequencies.length,
     source: jobMarketData.source,
-  });
+   }, 'Loaded job market data');
   
   // 3. Classify skills into gaps, strengths, improvements
   const gaps: SkillGap[] = [];
@@ -129,14 +132,14 @@ export async function analyzeGaps(
   improvements.sort((a, b) => b.required_frequency - a.required_frequency);
   strengths.sort((a, b) => b.required_frequency - a.required_frequency);
   
-  logger.info('Gap analysis complete', {
+  logger.info({ 
     userId,
     goalId,
     gaps: gaps.length,
     improvements: improvements.length,
     strengths: strengths.length,
     criticalGaps: gaps.filter(g => g.priority === 'critical').length,
-  });
+   }, 'Gap analysis complete');
   
   return { gaps, strengths, improvements };
 }

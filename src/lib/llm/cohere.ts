@@ -28,7 +28,7 @@ export async function rerankDocuments(
       relevance_score: result.relevanceScore,
     }));
   } catch (error) {
-    logger.error('Reranking failed', { error });
+    logger.error({  error  }, 'Reranking failed');
     throw error;
   }
 }

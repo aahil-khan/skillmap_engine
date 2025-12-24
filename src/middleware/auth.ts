@@ -43,7 +43,7 @@ export async function authenticate(c: Context, next: Next) {
     if (error instanceof AuthenticationError) {
       throw error;
     }
-    logger.error('Authentication error', { error });
+    logger.error({  error  }, 'Authentication error');
     throw new AuthenticationError('Authentication failed');
   }
 }

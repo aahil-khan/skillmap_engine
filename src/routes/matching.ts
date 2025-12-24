@@ -4,27 +4,12 @@ import { supabase } from '../lib/db/supabase.js';
 import { CacheKeys, CacheTTL, getJSON, setJSON } from '../lib/cache/redis.js';
 import { findMatchCandidates } from '../services/matching/matcher.js';
 import { calculateMatchScore } from '../services/matching/scorer.js';
+import { sendConnectionRequest, type ConnectionType } from '../services/connections/index.js';
+import { recordFeedback } from '../services/feedback/index.js';
 import logger from '../utils/logger.js';
+import { ValidationError } from '../utils/errors.js';
 
 const app = new Hono();
-
-interface MatchResult {
-  user_id: string;
-  display_name: string;
-  bio: string | null;
-  avatar_url: string | null;
-  experience_level: string | null;
-  top_skills: Array<{ canonical_name: string; category: string }>;
-  total_score: number;
-  similarity_score: number;
-  factors: {
-    shared_skills_score: number;
-    complementary_skills_score: number;
-    goal_alignment_score: number;
-    experience_compatibility_score: number;
-    availability_match_score: number;
-  };
-}
 
 /**
  * GET /peer/matches?page=1&limit=20
@@ -43,7 +28,7 @@ app.get('/', authenticate, async (c) => {
   console.log('User ID:', userId);
   console.log('Pagination:', { page, limit, offset });
   
-  logger.info('Finding peer matches', { userId, page, limit });
+  logger.info({ userId, page, limit }, 'Finding peer matches');
   
   try {
     // Check cache (cache ALL scored candidates, not just first page)
@@ -95,11 +80,11 @@ app.get('/', authenticate, async (c) => {
               factors: score.factors,
             };
           } catch (error) {
-            logger.error('Failed to score candidate', {
+            logger.error({
               userId,
               candidateId: candidate.user_id,
               error: error instanceof Error ? error.message : 'Unknown error',
-            });
+            }, 'Failed to score candidate');
             // Return with zero score if scoring fails
             return {
               user_id: candidate.user_id,
@@ -124,15 +109,15 @@ app.get('/', authenticate, async (c) => {
       // Cache ALL scored candidates for 15 minutes
       await setJSON(cacheKey, allScoredCandidates, CacheTTL.MATCHES);
       
-      logger.info('All candidates scored and cached', {
+      logger.info({
         userId,
         totalCandidates: allScoredCandidates.length,
-      });
+      }, 'All candidates scored and cached');
     } else {
-      logger.info('Using cached scored candidates', {
+      logger.info({
         userId,
         totalCandidates: allScoredCandidates.length,
-      });
+      }, 'Using cached scored candidates');
     }
     
     // 4. Calculate pagination
@@ -186,10 +171,11 @@ app.get('/', authenticate, async (c) => {
       if (!acc[item.user_id]) {
         acc[item.user_id] = [];
       }
-      if (acc[item.user_id].length < 5 && item.skill) {
+      if (acc[item.user_id].length < 5 && item.skill && !Array.isArray(item.skill)) {
+        const skill = item.skill as { canonical_name: string; category: string };
         acc[item.user_id].push({
-          canonical_name: item.skill.canonical_name,
-          category: item.skill.category,
+          canonical_name: skill.canonical_name,
+          category: skill.category,
         });
       }
       return acc;
@@ -226,13 +212,13 @@ app.get('/', authenticate, async (c) => {
       };
     });
     
-    logger.info('Matches returned for page', {
+    logger.info({
       userId,
       page,
       matchCount: matches.length,
       totalMatches,
       topScore: matches[0]?.total_score || 0,
-    });
+    }, 'Matches returned for page');
     
     return c.json({
       success: true,
@@ -253,10 +239,84 @@ app.get('/', authenticate, async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     
-    logger.error('Matching request failed', {
+    logger.error({
       userId,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, 'Matching request failed');
+    
+    throw error;
+  }
+});
+
+/**
+ * POST /peer/matches/:candidateId/action
+ * Take action on a match candidate (like/dislike/skip)
+ * Body: { action: "like" | "dislike" | "skip", connection_type?: string, message?: string }
+ */
+app.post('/:candidateId/action', authenticate, async (c) => {
+  const userId = c.get('userId');
+  const candidateId = c.req.param('candidateId');
+  const body = await c.req.json();
+  const { action, connection_type = 'study_partner', message = '' } = body;
+
+  // Validate action
+  if (!['like', 'dislike', 'skip'].includes(action)) {
+    throw new ValidationError('Invalid action. Must be: like, dislike, or skip');
+  }
+
+  // Prevent self-action
+  if (userId === candidateId) {
+    throw new ValidationError('Cannot send connection request to yourself');
+  }
+
+  logger.info({ userId, candidateId, action }, 'Peer match action');
+
+  try {
+    if (action === 'like') {
+      // Send connection request
+      const connection = await sendConnectionRequest(
+        userId,
+        candidateId,
+        connection_type as ConnectionType,
+        undefined,
+        message
+      );
+
+      // Record feedback
+      await recordFeedback(userId, candidateId, 'like', 0, {});
+
+      return c.json({
+        success: true,
+        message: 'Connection request sent successfully',
+        connection,
+      }, 201);
+    } else if (action === 'dislike') {
+      // Permanently hide peer
+      await recordFeedback(userId, candidateId, 'dislike', 0, {});
+      
+      return c.json({
+        success: true,
+        message: 'Peer hidden permanently',
+      });
+    } else if (action === 'skip') {
+      // Skip peer (reappears in 7 days)
+      await recordFeedback(userId, candidateId, 'skip', 0, {});
+      
+      return c.json({
+        success: true,
+        message: 'Peer skipped',
+      });
+    }
+
+    // Should never reach here due to validation
+    return c.json({ success: false, message: 'Invalid action' }, 400);
+  } catch (error) {
+    logger.error({
+      userId, 
+      candidateId, 
+      action,
+      error: error instanceof Error ? error.message : String(error)
+    }, 'Match action failed');
     
     throw error;
   }

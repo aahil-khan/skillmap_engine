@@ -97,7 +97,7 @@ export async function initQdrantCollections() {
 
     logger.info('All Qdrant collections initialized');
   } catch (error) {
-    logger.error('Failed to initialize Qdrant collections', { error });
+    logger.error({  error  }, 'Failed to initialize Qdrant collections');
     throw error;
   }
 }

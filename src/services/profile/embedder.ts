@@ -27,15 +27,9 @@ async function createBatchEmbeddings(texts: string[]): Promise<number[][]> {
  * Separate vectors for skills, goals, and experience for targeted matching
  */
 export async function generateProfileEmbeddings(userId: string): Promise<UserVectorProfile> {
-  logger.info('Generating profile embeddings', { userId });
+  logger.info({  userId  }, 'Generating profile embeddings');
   
-  // Fetch profile data
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  
+  // Fetch skills
   const { data: skills } = await supabase
     .from('user_skills')
     .select('*, skill:skills_taxonomy(canonical_name)')
@@ -77,12 +71,12 @@ export async function generateProfileEmbeddings(userId: string): Promise<UserVec
     val * 0.4 + goalsVec[idx] * 0.3 + expVec[idx] * 0.3
   );
   
-  logger.info('Profile embeddings generated', { 
+  logger.info({  
     userId, 
     skillsCount: skills?.length || 0,
     goalsCount: goals?.length || 0,
     experienceCount: experience?.length || 0,
-  });
+   }, 'Profile embeddings generated');
   
   return {
     skills_vector: skillsVec,
@@ -106,7 +100,8 @@ async function extractPrimaryCategories(userId: string): Promise<string[]> {
   
   // Count occurrences
   const categoryCounts = skills.reduce((acc, s) => {
-    const category = s.skill?.category;
+    const skill = (s.skill && !Array.isArray(s.skill)) ? s.skill as { category: string } : null;
+    const category = skill?.category;
     if (category) {
       acc[category] = (acc[category] || 0) + 1;
     }
@@ -136,7 +131,7 @@ async function extractPrimaryCategories(userId: string): Promise<string[]> {
  * Stores multi-vector representation with metadata for filtering
  */
 export async function upsertProfileEmbedding(userId: string) {
-  logger.info('Upserting profile embedding', { userId });
+  logger.info({  userId  }, 'Upserting profile embedding');
   
   const vectors = await generateProfileEmbeddings(userId);
   
@@ -181,9 +176,9 @@ export async function upsertProfileEmbedding(userId: string) {
     }],
   });
   
-  logger.info('Profile embedding upserted', { 
+  logger.info({  
     userId, 
     primaryCategories,
     skillCount: skills?.length || 0,
-  });
+   }, 'Profile embedding upserted');
 }

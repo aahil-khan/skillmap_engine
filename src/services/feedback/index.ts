@@ -21,11 +21,11 @@ export async function recordFeedback(
     });
   
   if (error) {
-    logger.error('Failed to record feedback', { error, userId, candidateId });
+    logger.error({  error, userId, candidateId  }, 'Failed to record feedback');
     throw error;
   }
   
-  logger.info('Match feedback recorded', { userId, candidateId, feedbackType, matchScore });
+  logger.info({  userId, candidateId, feedbackType, matchScore  }, 'Match feedback recorded');
 }
 
 export async function getFeedbackAnalytics(userId?: string) {
@@ -40,7 +40,7 @@ export async function getFeedbackAnalytics(userId?: string) {
   const { data, error } = await query;
   
   if (error) {
-    logger.error('Failed to fetch feedback analytics', { error });
+    logger.error({  error  }, 'Failed to fetch feedback analytics');
     return null;
   }
   

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/db/supabase.js';
-import { CacheKeys, CacheTTL, getJSON, setJSON, deleteKey } from '../../lib/cache/redis.js';
+import { CacheKeys, CacheTTL, setJSON, deleteKey } from '../../lib/cache/redis.js';
 import { normalizeSkills } from '../taxonomy/normalizer.js';
 import logger from '../../utils/logger.js';
 import type { SkillFrequency } from './taxonomyFallback.js';
@@ -39,12 +39,12 @@ export async function analyzeSkillFrequencies(
   // 4. Sort by frequency DESC
   frequencies.sort((a, b) => b.frequency - a.frequency);
   
-  logger.info('Skill frequencies calculated', {
+  logger.info({ 
     totalSkills: skills.length,
     uniqueSkills: frequencies.length,
     topSkill: frequencies[0]?.canonical_name,
     topFrequency: frequencies[0]?.frequency
-  });
+   }, 'Skill frequencies calculated');
   
   return frequencies;
 }
@@ -79,18 +79,18 @@ export async function cacheJobMarketSkills(
       });
     
     if (error) {
-      logger.error('Failed to cache job market skills in Supabase', { error: error.message, code: error.code, userId, goalId });
+      logger.error({  error: error.message, code: error.code, userId, goalId  }, 'Failed to cache job market skills in Supabase');
       // Don't throw - Redis cache is still available
     } else {
-      logger.info('Job market skills cached', { 
+      logger.info({  
         userId, 
         goalId, 
         skillCount: frequencies.length,
         source 
-      });
+       }, 'Job market skills cached');
     }
   } catch (error) {
-    logger.error('Cache operation failed', { error, userId, goalId });
+    logger.error({  error, userId, goalId  }, 'Cache operation failed');
     throw error;
   }
 }
@@ -109,14 +109,14 @@ export async function clearJobMarketCache(userId: string, goalId: string) {
       .eq('goal_id', goalId);
     
     if (error) {
-      logger.error('Failed to clear job market cache from Supabase', { error: error.message, userId, goalId });
+      logger.error({  error: error.message, userId, goalId  }, 'Failed to clear job market cache from Supabase');
       // Don't throw - Redis cleared successfully
     } else {
-      logger.info('Job market cache cleared', { userId, goalId });
+      logger.info({  userId, goalId  }, 'Job market cache cleared');
     }
   } catch (error) {
     const err = error as Error;
-    logger.error('Clear cache operation failed', { error: err.message, userId, goalId });
+    logger.error({  error: err.message, userId, goalId  }, 'Clear cache operation failed');
     throw error;
   }
 }
