@@ -195,7 +195,19 @@ app.get('/', authenticate, async (c) => {
       return acc;
     }, {} as Record<string, Array<{ canonical_name: string; category: string }>>) || {};
     
-    // 8. Assemble final response
+    // 8. Get previous feedback for these candidates
+    const { data: feedbackData } = await supabase
+      .from('match_feedback')
+      .select('candidate_id, feedback_type')
+      .eq('user_id', userId)
+      .in('candidate_id', pageMatches.map(m => m.user_id));
+    
+    const feedbackByCandidate = feedbackData?.reduce((acc, item) => {
+      acc[item.candidate_id] = item.feedback_type;
+      return acc;
+    }, {} as Record<string, string>) || {};
+    
+    // 9. Assemble final response
     const matches = pageMatches.map(match => {
       const profile = profiles?.find(p => p.user_id === match.user_id);
       const topSkills = skillsByUser[match.user_id] || [];
@@ -210,6 +222,7 @@ app.get('/', authenticate, async (c) => {
         total_score: match.total_score,
         similarity_score: match.similarity_score,
         factors: match.factors,
+        previous_feedback: feedbackByCandidate[match.user_id] || null,
       };
     });
     

@@ -14,6 +14,7 @@ import jobsRoutes from './routes/jobs.js';
 import gapsRoutes from './routes/gaps.js';
 import skillsRoutes from './routes/skills.js';
 import leetcodeRoutes from './routes/leetcode.js';
+import feedbackRoutes from './routes/feedback.js';
 
 const app = new Hono();
 
@@ -30,6 +31,7 @@ app.route('/api/jobs', jobsRoutes);
 app.route('/api/gaps', gapsRoutes);
 app.route('/skills', skillsRoutes);
 app.route('/api/leetcode', leetcodeRoutes);
+app.route('/api/feedback', feedbackRoutes);
 
 // Health check
 app.get('/health', async (c) => {
